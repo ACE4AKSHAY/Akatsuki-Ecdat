@@ -43,7 +43,7 @@ export const HeatmapPage: React.FC<HeatmapPageProps> = ({
     const critKey = a.businessCriticality || 'Medium';
     const rowIndex = critRow[critKey] ?? 2;
 
-    const jitter = (rowCounts[rowIndex] || 0) * 8;
+    const jitter = ((rowCounts[rowIndex] || 0) % 5) * 3;
     rowCounts[rowIndex] = (rowCounts[rowIndex] || 0) + 1;
 
     const left = Math.min((r / maxR) * 100, 97);
@@ -105,7 +105,9 @@ export const HeatmapPage: React.FC<HeatmapPageProps> = ({
           const isEscalated = item.asset.autoEsc;
 
           return (
-            <div
+            <button
+              type="button"
+              aria-label={`${item.asset.name} at ${item.asset.loc}`}
               key={item.key}
               className={`heatmap-dot z-10 ${isEscalated ? 'is-escalated' : ''}`}
               style={{
@@ -115,7 +117,7 @@ export const HeatmapPage: React.FC<HeatmapPageProps> = ({
               }}
               onMouseEnter={() => setHoveredAsset(item.asset)}
               onMouseLeave={() => setHoveredAsset(null)}
-              onClick={() => onSelectAsset?.(item.asset.name)}
+              onClick={() => onSelectAsset?.(item.asset.id || item.asset.name)}
               title={`${item.asset.name} — ${item.asset.algo} — r=${item.r.toFixed(2)}${
                 isEscalated ? ' (auto-escalated: classically broken)' : ''
               }`}

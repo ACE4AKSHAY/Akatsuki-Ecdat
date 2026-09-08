@@ -5,9 +5,7 @@
 packages against the M2 crypto library registry; emit RawFindings with
 `detectionTier="dockerfile"`, `confidence=0.85`.
 
-`scan_container_image(ref)` — NotImplementedError (Trivy shell-out is
-roadmap §17, not 1-day deliverable). Per the plan, this is intentionally
-NOT a stub returning []; raising makes the gap visible.
+`scan_container_image(ref)` reads an offline package inventory or uses the optional Trivy executable for a live image reference.
 """
 from __future__ import annotations
 
@@ -58,6 +56,8 @@ def _emit_installs(packages: Iterable[str], *, scan_target_id: str, file_path: s
 
 def scan_dockerfile(path: str | Path, scan_target_id: str) -> list[RawFinding]:
     p = Path(path)
+    if p.is_dir():
+        return [finding for candidate in p.rglob("*") if candidate.is_file() and (candidate.name.lower().startswith("dockerfile") or candidate.suffix.lower() == ".dockerfile") for finding in scan_dockerfile(candidate, scan_target_id)]
     if not p.is_file():
         return []
     out: list[RawFinding] = []
@@ -93,14 +93,63 @@ def scan_dockerfile(path: str | Path, scan_target_id: str) -> list[RawFinding]:
     return out
 
 
-def scan_container_image(image_ref: str) -> list[RawFinding]:  # pragma: no cover
-    """Intentionally raises — roadmap §17 (Trivy shell-out).
+def validate_image_input(target: str) -> str:
+    import shutil
+    root = Path(target).expanduser()
+    if root.is_file():
+        if root.suffix.lower() != '.json' or root.stat().st_size > 20 * 1024 * 1024:
+            raise ValueError('Offline image input must be a CycloneDX or Trivy JSON inventory under 20 MB.')
+        return str(root.resolve())
+    if not re.fullmatch(r'[a-z0-9][a-z0-9._/:@-]{0,250}', target):
+        raise ValueError('Enter a container image reference or a local image inventory JSON file.')
+    if not shutil.which('trivy'):
+        raise ValueError('Live image inventory requires Trivy on PATH. Alternatively upload a CycloneDX or Trivy JSON inventory.')
+    return target
 
-    Per the plan this is NOT a stub returning []; the dispatcher caller
-    needs to know the gap is real. Implement with Trivy / Syft / Grype
-    shell-out in a follow-up.
-    """
-    raise NotImplementedError(
-        "M3 scan_container_image is roadmap §17 (Trivy shell-out), "
-        "not part of the 1-day MVP. See ECDAT_Design_and_Technical_Document.md §17."
-    )
+
+def findings_from_image_inventory(data: dict, scan_target_id: str) -> list[RawFinding]:
+    """Map actual package inventory to the project crypto-library registry."""
+    packages = []
+    if data.get('bomFormat') == 'CycloneDX' and isinstance(data.get('components'), list):
+        for component in data['components']:
+            packages.append((component.get('name', ''), component.get('version', ''), component.get('purl', 'image-packages')))
+    elif isinstance(data.get('Results'), list):
+        for result in data['Results']:
+            for package in result.get('Packages', []):
+                packages.append((package.get('Name', ''), package.get('Version', ''), result.get('Target', 'image-packages')))
+    else:
+        raise ValueError('Expected a CycloneDX components array or Trivy Results package inventory.')
+    findings = []
+    seen = set()
+    for name, version, location in packages:
+        entry = lookup(name, version=version)
+        if not entry or not entry.get("algorithms") or (name, version, location) in seen:
+            continue
+        seen.add((name, version, location))
+        findings.append(RawFinding(sourceModule='M3_container_config_scanner', scanTargetId=scan_target_id,
+            filePath=str(location), lineNumber=1, language='manifest', library=entry['library'],
+            rawSignal=f'{name}@{version}', detectedPrimitive=entry['library'], primitiveCategory='key-management',
+            confidence=0.9, detectionTier='manifest'))
+    return findings
+
+
+def scan_container_image(image_ref: str, scan_target_id: str = 'image') -> list[RawFinding]:
+    """Read an offline SBOM or ask Trivy for package-only CycloneDX inventory."""
+    import json
+    import subprocess
+    import tempfile
+    target = validate_image_input(image_ref)
+    if Path(target).is_file():
+        return findings_from_image_inventory(json.loads(Path(target).read_text()), scan_target_id)
+    with tempfile.TemporaryDirectory(prefix='ecdat-image-') as tmp:
+        output = Path(tmp) / 'inventory.json'
+        try:
+            result = subprocess.run(['trivy', 'image', '--format', 'cyclonedx', '--output', str(output),
+                '--timeout', '3m', '--', target], capture_output=True, timeout=190)
+        except subprocess.TimeoutExpired as exc:
+            raise ValueError('Image inventory exceeded the 190 second limit.') from exc
+        if result.returncode:
+            raise ValueError('Trivy could not inventory the image. Check image availability, registry access and Trivy setup.')
+        if output.stat().st_size > 20 * 1024 * 1024:
+            raise ValueError('Image inventory exceeds the 20 MB limit.')
+        return findings_from_image_inventory(json.loads(output.read_text()), scan_target_id)

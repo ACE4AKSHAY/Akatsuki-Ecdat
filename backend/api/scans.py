@@ -2,12 +2,17 @@
 Scan lifecycle API routes: POST /scans, GET /scans/{id}, GET /scans
 """
 import uuid
+from backend.ingestion import validate_input, state_dir, MAX_UPLOAD
+from pathlib import Path
+import json
+import shutil
+from fastapi import UploadFile, File, Form, Query
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models.db_models import Scan
+from backend.models.db_models import Scan, ScanJob
 from backend.models.schemas import ScanCreate, ScanResponse
 from backend.engine.orchestrator import run_scan_pipeline_sync
 
@@ -17,37 +22,35 @@ router = APIRouter(prefix="/scans", tags=["Scans"])
 @router.post("", response_model=ScanResponse, status_code=202)
 def create_scan(
     request: ScanCreate,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     """
     Kicks off an asynchronous cryptographic discovery scan.
     Returns immediately with a scanId and 'queued' status.
     """
+    try:
+        resolved_target = validate_input(request.sourceType, request.target)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     scan_id = f"scan_{datetime.utcnow().strftime('%Y%m%d')}_{uuid.uuid4().hex[:8]}"
 
     new_scan = Scan(
         id=scan_id,
         source_type=request.sourceType,
-        target=request.target,
+        target=str(resolved_target),
         status="queued",
         progress=0.0,
         asset_count=0,
         created_at=datetime.utcnow(),
     )
     db.add(new_scan)
-    db.commit()
-    db.refresh(new_scan)
+    db.flush()
 
-    # Dispatch to background task execution
-    background_tasks.add_task(
-        run_scan_pipeline_sync,
-        scan_id=scan_id,
-        source_type=request.sourceType,
-        target=request.target,
-        compliance_target=request.complianceTarget or "NIST-general",
-        threat_timeline_override=request.threatTimelineOverride,
-    )
+    db.add(ScanJob(scan_id=scan_id, options_json=json.dumps({
+        "compliance_target": request.complianceTarget or "NIST-general",
+        "threat_timeline_override": request.threatTimelineOverride,
+    })))
+    db.commit()
 
     return ScanResponse(
         scanId=new_scan.id,
@@ -60,6 +63,33 @@ def create_scan(
         completedAt=new_scan.completed_at.isoformat() if new_scan.completed_at else None,
         error=new_scan.error,
     )
+
+
+@router.post("/upload", response_model=ScanResponse, status_code=202)
+async def upload_scan(file: UploadFile = File(...), sourceType: str = Form("upload"), db: Session = Depends(get_db)):
+    """Persist a single source file, ZIP workspace, or image SBOM before queueing."""
+    if sourceType not in ("upload", "image"):
+        raise HTTPException(422, "Upload source must be upload or image.")
+    name = Path(file.filename or "upload.txt").name
+    folder = state_dir() / "uploads" / uuid.uuid4().hex
+    folder.mkdir(parents=True)
+    destination = folder / name
+    size = 0
+    try:
+        with destination.open("wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_UPLOAD:
+                    raise HTTPException(413, "Upload exceeds the 20 MB limit.")
+                out.write(chunk)
+        if size == 0:
+            raise HTTPException(422, "Upload is empty.")
+        return create_scan(ScanCreate(target=str(destination), sourceType=sourceType), db)
+    except Exception:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+    finally:
+        await file.close()
 
 
 @router.get("/{scan_id}", response_model=ScanResponse)
@@ -83,9 +113,9 @@ def get_scan(scan_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=List[ScanResponse])
-def list_scans(limit: int = 20, db: Session = Depends(get_db)):
+def list_scans(limit: int = Query(20, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
     """Lists recent scans."""
-    scans = db.query(Scan).order_by(Scan.created_at.desc()).limit(limit).all()
+    scans = db.query(Scan).order_by(Scan.created_at.desc()).offset(offset).limit(limit).all()
     return [
         ScanResponse(
             scanId=s.id,

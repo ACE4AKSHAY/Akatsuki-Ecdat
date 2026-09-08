@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FrontendAsset } from '../types';
 import { Button } from '../components/Button';
 import { RiskChip } from '../components/RiskChip';
-import { downloadReportUrl, downloadCBOMUrl } from '../api';
+import { downloadReportUrl, downloadCBOMUrl, downloadExport } from '../api';
 
 interface RecommendationsPageProps {
   assets: FrontendAsset[];
@@ -15,6 +15,7 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({
   scanId = 'latest',
   onSelectAsset,
 }) => {
+  const [exportError, setExportError] = useState('');
   // Sort recommendations: auto-escalated first, then highest r
   const actionableAssets = assets
     .filter((a) => a.rec !== 'No change needed')
@@ -24,18 +25,21 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({
       return scoreB - scoreA;
     });
 
-  const handleExport = (format: 'pdf' | 'csv' | 'cbom') => {
+  const handleExport = async (format: 'pdf' | 'csv' | 'cbom') => {
     let url: string;
     if (format === 'cbom') {
       url = downloadCBOMUrl(scanId);
     } else {
       url = downloadReportUrl(scanId, format);
     }
-    window.open(url, '_blank');
+    setExportError('');
+    try { await downloadExport(url); } catch (error) { setExportError((error as Error).message); }
   };
 
   return (
     <div>
+      {exportError && <p role="alert" className="error-panel">{exportError}</p>}
+      <p className="text-ink-soft text-sm mb-3">Exports use the saved scan assessment. Heatmap timeline changes are exploratory.</p>
       {/* Export Row */}
       <div className="flex gap-[10px] mb-5 flex-wrap">
         <Button variant="secondary" onClick={() => handleExport('pdf')}>
@@ -76,7 +80,7 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({
               <tr
                 key={`${asset.name}-${idx}`}
                 className="hover:bg-paper/50 cursor-pointer transition-colors"
-                onClick={() => onSelectAsset?.(asset.name)}
+                onClick={() => onSelectAsset?.(asset.id || asset.name)}
               >
                 <td className="py-[11px] pr-2 pl-0 border-b border-border font-medium text-ink">{asset.name}</td>
                 <td className="py-[11px] pr-2 border-b border-border">

@@ -46,9 +46,9 @@ def _parser(language: str) -> Parser | None:
     if language not in _LANG_PTRS:
         return None
     if language not in _PARSERS:
-        lang = Language(_LANG_PTRS[language], _LANG_GRAMMARS[language])
+        lang = Language(_LANG_PTRS[language])
         p = Parser()
-        p.set_language(lang)
+        p.language = lang
         _PARSERS[language] = p
     return _PARSERS[language]
 

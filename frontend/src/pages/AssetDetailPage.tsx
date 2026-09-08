@@ -23,16 +23,17 @@ export const AssetDetailPage: React.FC<AssetDetailPageProps> = ({
     <div>
       {/* Asset Selector Dropdown if multiple exist */}
       {allAssets.length > 1 && (
-        <div className="mb-5 flex items-center gap-3">
-          <label className="text-[12.5px] text-ink-soft">Select asset to inspect:</label>
+        <div className="mb-5 flex flex-col md:flex-row md:items-center gap-3">
+          <label htmlFor="asset-selector" className="text-[12.5px] text-ink-soft">Select asset to inspect:</label>
           <select
-            value={asset.name}
+            id="asset-selector"
+            value={asset.id || asset.name}
             onChange={(e) => onSelectAsset?.(e.target.value)}
-            className="font-sans text-[13px] py-1 px-2 border border-border-strong rounded-sm bg-surface text-ink focus:border-cipher outline-none"
+            className="min-w-0 w-full md:flex-1 font-sans text-[13px] py-1 px-2 border border-border-strong rounded-sm bg-surface text-ink focus:border-cipher outline-none"
           >
             {allAssets.map((a) => (
-              <option key={a.name} value={a.name}>
-                {a.name} ({a.algo})
+              <option key={a.id || a.name} value={a.id || a.name}>
+                {a.name} — {a.loc}
               </option>
             ))}
           </select>
@@ -43,14 +44,14 @@ export const AssetDetailPage: React.FC<AssetDetailPageProps> = ({
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-[17px] font-semibold text-ink">{asset.name}</h2>
-          <p className="text-[12.5px] font-mono text-ink-soft mt-1">{asset.loc}</p>
+          <p className="text-[12.5px] font-mono text-ink-soft mt-1 break-all">{asset.loc}</p>
         </div>
         <RiskChip tier={tier} />
       </div>
 
       {/* Ratio Callout */}
       <div
-        className={`flex items-center justify-between p-4 rounded-md mb-5 border border-transparent ${
+        className={`flex flex-col md:flex-row items-start md:items-center gap-4 justify-between p-4 rounded-md mb-5 border border-transparent ${
           isCritical
             ? 'bg-risk-critical-bg text-risk-critical'
             : (tier === 'high' ? 'bg-risk-high-bg text-risk-high' : 'bg-paper text-ink')

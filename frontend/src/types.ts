@@ -14,6 +14,7 @@ export interface FrontendAsset {
   bu: string;
   x: number;
   y: number;
+  z?: number;
   autoEsc: boolean;
   r?: number;
   tier?: RiskTier;

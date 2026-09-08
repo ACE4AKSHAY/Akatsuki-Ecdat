@@ -27,6 +27,7 @@ def test_dockerfile_reports_base_image(tmp_path, scan_target_id):
     assert any(f.detectedPrimitive == "base-image" for f in findings)
 
 
-def test_scan_container_image_raises_not_implemented():
-    with pytest.raises(NotImplementedError):
+def test_scan_container_image_reports_missing_dependency(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    with pytest.raises(ValueError, match="requires Trivy"):
         scan_container_image("alpine:3.18")

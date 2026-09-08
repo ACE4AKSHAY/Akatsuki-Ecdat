@@ -227,14 +227,14 @@ def test_m9_api_endpoints():
     client = TestClient(app)
 
     # 1. Run a scan to populate test data
-    scan_res = client.post("/scans", json={"sourceType": "path", "target": "demo_target"})
+    scan_res = client.post("/scans", json={"sourceType": "path", "target": "seed_corpus"})
     assert scan_res.status_code == 202
     scan_id = scan_res.json()["scanId"]
 
     run_scan_pipeline_sync(
         scan_id=scan_id,
         source_type="path",
-        target="demo_target",
+        target="seed_corpus",
     )
 
     # 2. Test PDF export via API

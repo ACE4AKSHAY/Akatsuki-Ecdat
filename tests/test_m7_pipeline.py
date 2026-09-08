@@ -44,7 +44,7 @@ def test_full_scan_pipeline_and_endpoints(client):
     # 1. Trigger scan
     scan_payload = {
         "sourceType": "path",
-        "target": "demo_repo",
+        "target": "seed_corpus",
         "complianceTarget": "NIST-general",
         "threatTimelineOverride": 8.0,
     }
@@ -59,7 +59,7 @@ def test_full_scan_pipeline_and_endpoints(client):
     run_scan_pipeline_sync(
         scan_id=scan_id,
         source_type="path",
-        target="demo_repo",
+        target="seed_corpus",
         compliance_target="NIST-general",
         threat_timeline_override=8.0,
     )
