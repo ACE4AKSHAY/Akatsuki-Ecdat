@@ -51,6 +51,19 @@ def generate_recommendation(
             "relativeSizeDelta": "Identical ciphertext size, +128 bit key size",
         }
 
+    if clean_name in {"AES-256", "AES256", "CHACHA20", "SHA-384", "SHA384", "SHA-512", "SHA512", "SHA3-384", "SHA3-512"} or clean_name.startswith(("ML-KEM", "ML-DSA", "SLH-DSA")):
+        return {"recommendedReplacement": "No change needed", "mode": "retain", "complexity": "Low",
+                "rationale": "No algorithm replacement identified by the current rules; validate usage and configuration.",
+                "referenceStandard": "Review applicable algorithm standard"}
+    if primitive_category == "protocol":
+        return {"recommendedReplacement": "TLS 1.3 with reviewed cipher configuration", "mode": "protocol review", "complexity": "Medium",
+                "rationale": "Review protocol support and negotiated algorithms before selecting a key establishment scheme.",
+                "referenceStandard": "RFC 8446"}
+    if primitive_category in {"key-management", "cipher", "algorithm"} or clean_name == "AES":
+        return {"recommendedReplacement": "Review required", "mode": "manual review", "complexity": "Unknown",
+                "rationale": "A package or ambiguous primitive is insufficient to prescribe a cryptographic replacement.",
+                "referenceStandard": "Not determined"}
+
     # 4. Asymmetric Digital Signatures
     is_signature = (
         primitive_category in ["asymmetric_sig", "signature", "cert"]

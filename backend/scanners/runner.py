@@ -106,78 +106,44 @@ def get_contract_seed_findings(scan_id: str) -> List[RawFinding]:
     ]
 
 
+def validate_target(source_type: str, target: str):
+    from backend.ingestion import validate_input
+    return __import__("pathlib").Path(validate_input(source_type, target))
+
+
 def run_scanners(source_type: str, target: str, scan_id: str) -> List[RawFinding]:
-    """
-    Executes scanning across M1, M2, and M3.
-    If target is a valid local directory or file, scans it statically.
-    Otherwise, if target is demo/sample/not found, yields seed findings matching CONTRACT.md.
-    """
-    findings: List[RawFinding] = []
+    """Run the actual M1/M2/M3 modules; an empty scan stays empty."""
+    from backend.scanners.source.scanner import scan_repository
+    from backend.scanners.source.tier1 import scan_file
+    from backend.scanners.source.tier2 import confirm
+    from backend.scanners.binary_deps.scanner import scan_path as scan_dependencies
+    from backend.scanners.infra.scanner import scan_path as scan_infrastructure
 
-    # If target is local path that exists, do a real pass
-    if os.path.exists(target):
-        if os.path.isdir(target):
-            for root, _, files in os.walk(target):
-                # Skip venv or git
-                if ".venv" in root or ".git" in root:
-                    continue
-                for file in files:
-                    ext = os.path.splitext(file)[1].lower()
-                    if ext in [".py", ".js", ".ts", ".go", ".java", ".c", ".cpp", ".yml", ".yaml", ".conf", ".txt"]:
-                        file_path = os.path.join(root, file)
-                        try:
-                            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                                for line_idx, line in enumerate(f, 1):
-                                    for pattern, prim, cat, lib, lang in REGEX_CRYPTO_PATTERNS:
-                                        if re.search(pattern, line):
-                                            findings.append(
-                                                RawFinding(
-                                                    sourceModule="M1_source_scanner",
-                                                    scanTargetId=scan_id,
-                                                    filePath=os.path.relpath(file_path, target).replace("\\", "/"),
-                                                    lineNumber=line_idx,
-                                                    language=lang,
-                                                    library=lib,
-                                                    rawSignal=line.strip()[:100],
-                                                    detectedPrimitive=prim,
-                                                    primitiveCategory=cat,
-                                                    keySizeBits=128 if "128" in prim else (2048 if "2048" in prim else None),
-                                                    mode="CBC" if "CBC" in line else None,
-                                                    confidence=0.85,
-                                                    detectionTier="regex",
-                                                )
-                                            )
-                        except Exception:
-                            continue
-        elif os.path.isfile(target):
-            # Single file scan
-            try:
-                with open(target, "r", encoding="utf-8", errors="ignore") as f:
-                    for line_idx, line in enumerate(f, 1):
-                        for pattern, prim, cat, lib, lang in REGEX_CRYPTO_PATTERNS:
-                            if re.search(pattern, line):
-                                findings.append(
-                                    RawFinding(
-                                        sourceModule="M1_source_scanner",
-                                        scanTargetId=scan_id,
-                                        filePath=os.path.basename(target),
-                                        lineNumber=line_idx,
-                                        language=lang,
-                                        library=lib,
-                                        rawSignal=line.strip()[:100],
-                                        detectedPrimitive=prim,
-                                        primitiveCategory=cat,
-                                        keySizeBits=128 if "128" in prim else (2048 if "2048" in prim else None),
-                                        mode=None,
-                                        confidence=0.85,
-                                        detectionTier="regex",
-                                    )
-                                )
-            except Exception:
-                pass
+    from backend.ingestion import prepared_target, validate_input
+    validate_input(source_type, target)
+    if source_type == "image":
+        from backend.scanners.infra.container import scan_container_image
+        return [RawFinding.model_validate(f.model_dump()) for f in scan_container_image(target, scan_id)]
+    with prepared_target(source_type, target) as root:
+        return _scan_local(root, scan_id)
 
-    # If no findings found in local target or target is a simulated / demo repo, use verified seed findings
-    if not findings:
-        findings = get_contract_seed_findings(scan_id)
 
+def _scan_local(root, scan_id):
+    from backend.scanners.source.scanner import scan_repository
+    from backend.scanners.source.tier1 import scan_file
+    from backend.scanners.source.tier2 import confirm
+    from backend.scanners.binary_deps.scanner import scan_path as scan_dependencies
+    from backend.scanners.infra.scanner import scan_path as scan_infrastructure
+    source = scan_repository(root, scan_id) if root.is_dir() else confirm(scan_file(root, scan_target_id=scan_id))
+    raw = [*source, *scan_dependencies(root, scan_id), *scan_infrastructure(root, scan_id)]
+    categories = {"symmetric-cipher": "symmetric", "asymmetric-cipher": "asymmetric_kem",
+                  "signature": "asymmetric_sig", "certificate": "cert"}
+    findings = []
+    for item in raw:
+        data = item.model_dump()
+        data["primitiveCategory"] = categories.get(data["primitiveCategory"], data["primitiveCategory"])
+        path = __import__("pathlib").Path(data["filePath"])
+        if path.is_absolute():
+            data["filePath"] = str(path.relative_to(root if root.is_dir() else root.parent))
+        findings.append(RawFinding.model_validate(data))
     return findings

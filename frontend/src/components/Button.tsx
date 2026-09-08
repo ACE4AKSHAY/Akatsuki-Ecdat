@@ -16,7 +16,7 @@ export const Button: React.FC<ButtonProps> = ({
     'font-sans text-[13.5px] font-medium cursor-pointer rounded-sm py-[9px] px-[16px] border transition-colors inline-flex items-center justify-center gap-2';
 
   const variantClasses = {
-    primary: 'bg-cipher text-white border-transparent hover:bg-[#1e2f5e]',
+    primary: 'bg-qubit text-white border-transparent hover:bg-[#087e76]',
     secondary: 'bg-surface text-ink border-border-strong hover:border-ink-faint',
     ghost: 'bg-transparent text-ink-soft border-transparent hover:text-ink',
   };

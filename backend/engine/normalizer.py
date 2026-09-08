@@ -105,6 +105,8 @@ def normalize_findings(
     threat_timeline_z: float = 8.0,
     compliance_target: str = "NIST-general",
     weights: Optional[Dict[str, float]] = None,
+    shelf_life_defaults: Optional[Dict[str, float]] = None,
+    migration_effort_defaults: Optional[Dict[str, float]] = None,
 ) -> List[CanonicalCBOMAsset]:
     """
     Merges raw findings into deduplicated CanonicalCBOMAsset objects with ecdatEnrichment.
@@ -121,6 +123,9 @@ def normalize_findings(
 
         if group_key not in grouped_assets:
             crit, classification, exposure, x, y = infer_context_from_path(f.filePath, can_name)
+
+            x = (shelf_life_defaults or {}).get(classification, x)
+            y = (migration_effort_defaults or {}).get(f.primitiveCategory, (migration_effort_defaults or {}).get(prim_cat, y))
 
             # Check if this finding is specifically firmware
             is_firmware = classification == "Firmware"
@@ -171,7 +176,7 @@ def normalize_findings(
             )
 
             crypto_props = CryptoProperties(
-                assetType="algorithm",
+                assetType=("certificate" if f.primitiveCategory == "cert" else "protocol" if f.primitiveCategory == "protocol" else "algorithm"),
                 algorithmProperties=AlgorithmProperties(
                     primitive=prim_cat,
                     parameterSetIdentifier=can_name,

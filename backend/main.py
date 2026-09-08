@@ -2,6 +2,9 @@
 FastAPI Main Application for ECDAT Module M7 (Backend API & Orchestration).
 """
 from contextlib import asynccontextmanager
+import os
+from backend.auth import AccessControlMiddleware
+from backend.engine.jobs import JobWorker
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import init_db
@@ -16,8 +19,12 @@ from backend.api.config_routes import router as config_router
 async def lifespan(app: FastAPI):
     # Startup: Initialize database schema
     init_db()
-    yield
-    # Shutdown: cleanup if needed
+    worker = JobWorker()
+    worker.start()
+    try:
+        yield
+    finally:
+        worker.stop()
 
 
 app = FastAPI(
@@ -37,11 +44,13 @@ app = FastAPI(
 # Enable CORS for Frontend (M8)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=os.getenv("ECDAT_CORS_ORIGINS", "http://127.0.0.1:3000,http://127.0.0.1:3001,http://localhost:3000").split(","),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(AccessControlMiddleware)
 
 # Register API Routers
 app.include_router(scans_router)

@@ -8,6 +8,7 @@ interface InventoryPageProps {
 }
 
 export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAsset }) => {
+  const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | RiskTier>('all');
 
   const filterOptions: { id: 'all' | RiskTier; label: string }[] = [
@@ -18,10 +19,11 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAs
     { id: 'low', label: 'Low' },
   ];
 
-  const filteredAssets = assets.filter((a) => filter === 'all' || a.tier === filter);
+  const filteredAssets = assets.filter((a) => (filter === 'all' || a.tier === filter) && `${a.name} ${a.loc} ${a.bu}`.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div>
+      <input aria-label="Search assets" placeholder="Search algorithm, location or classification…" value={search} onChange={e => setSearch(e.target.value)} className="w-full border border-border rounded-md p-3 mb-4 bg-surface" />
       {/* Filter Chips */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {filterOptions.map((opt) => {
@@ -43,6 +45,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAs
         })}
       </div>
 
+      <p className="text-ink-soft text-sm mb-3">{filteredAssets.length} matching assets</p>
       {/* Inventory Table */}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[12.8px]">
@@ -61,7 +64,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAs
                 Location
               </th>
               <th className="text-left font-medium text-ink-faint text-[11px] pb-2 border-b border-border-strong">
-                Business unit
+                Classification
               </th>
               <th className="text-left font-medium text-ink-faint text-[11px] pb-2 border-b border-border-strong">
                 Risk
@@ -73,9 +76,9 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAs
               <tr
                 key={`${asset.name}-${idx}`}
                 className="hover:bg-paper/50 cursor-pointer transition-colors"
-                onClick={() => onSelectAsset?.(asset.name)}
+                onClick={() => onSelectAsset?.(asset.id || asset.name)}
               >
-                <td className="py-[10px] pr-2 pl-0 border-b border-border text-ink font-medium">{asset.name}</td>
+                <td className="py-[10px] pr-2 pl-0 border-b border-border text-ink font-medium"><button className="asset-link" onClick={e => { e.stopPropagation(); onSelectAsset?.(asset.id || asset.name); }}>{asset.name}</button></td>
                 <td className="py-[10px] pr-2 border-b border-border text-ink-soft">{asset.type}</td>
                 <td className="py-[10px] pr-2 border-b border-border font-mono text-[12px] text-ink-soft">
                   {asset.algo}

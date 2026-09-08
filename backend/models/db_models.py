@@ -94,3 +94,10 @@ class ThreatModelConfig(Base):
     shelf_life_json = Column(Text, nullable=False)
     migration_effort_json = Column(Text, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ScanJob(Base):
+    """Persisted options allow a queued/interrupted scan to restart consistently."""
+    __tablename__ = 'scan_jobs'
+    scan_id = Column(String(64), ForeignKey('scans.id'), primary_key=True)
+    options_json = Column(Text, nullable=False)

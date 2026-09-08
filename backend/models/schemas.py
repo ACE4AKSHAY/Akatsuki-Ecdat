@@ -3,7 +3,7 @@ Pydantic schemas for ECDAT.
 Strictly conforms to ECDAT — CONTRACT.md and CycloneDX 1.6 CBOM standard.
 """
 from typing import Optional, List, Literal, Any, Dict
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 # ==============================================================================
@@ -115,7 +115,7 @@ class ScanCreate(BaseModel):
     )
     target: str = Field(..., description="Target repository URL, local path, container image reference, or uploaded file")
     complianceTarget: Optional[Literal["NIST-general", "CNSA2.0"]] = "NIST-general"
-    threatTimelineOverride: Optional[float] = Field(None, description="Optional custom Z (years until CRQC) override")
+    threatTimelineOverride: Optional[float] = Field(None, ge=0.5, le=50.0, description="Optional custom Z (years until CRQC) override")
 
 
 class ScanResponse(BaseModel):
@@ -157,3 +157,11 @@ class ThreatModelUpdateRequest(BaseModel):
     weightExposure: Optional[float] = Field(None, ge=0.0, le=1.0)
     shelfLifeDefaults: Optional[Dict[str, float]] = None
     migrationEffortDefaults: Optional[Dict[str, float]] = None
+
+    @field_validator('shelfLifeDefaults', 'migrationEffortDefaults')
+    @classmethod
+    def positive_years(cls, value):
+        import math
+        if value is not None and any(not math.isfinite(years) or years < 0 or years > 100 for years in value.values()):
+            raise ValueError('Custom timeline values must be finite and between 0 and 100 years.')
+        return value

@@ -2,7 +2,7 @@
 
 `scan_path(path, scan_target_id, *, image_ref=None) -> list[RawFinding]`
 dispatches by file extension/path. If `image_ref` is passed, routes to
-`scan_container_image` (NotImplementedError per the plan / roadmap §17).
+`scan_container_image` for package inventory.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ DOCKERFILE_NAMES = {"dockerfile", "dockerfile.dev", "dockerfile.prod"}
 def scan_path(path: str | Path, scan_target_id: str, *, image_ref: str | None = None) -> list[RawFinding]:
     root = Path(path)
     if image_ref:
-        scan_container_image(image_ref)  # raises NotImplementedError
+        return scan_container_image(image_ref, scan_target_id)
 
     if not root.exists():
         return []

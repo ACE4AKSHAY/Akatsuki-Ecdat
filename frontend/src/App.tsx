@@ -1,12 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Screen, FrontendAsset } from './types';
-import {
-  INITIAL_SAMPLE_ASSETS,
-  computeAllAssetsWithZ,
-  fetchLiveAssets,
-  fetchScans,
-  startScan,
-} from './api';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Screen, FrontendAsset, ScanResponse } from './types';
+import { computeAllAssetsWithZ, fetchLiveAssets, fetchScans, fetchScan, startScan, uploadScan, setAccessToken } from './api';
 import { AppShell } from './components/AppShell';
 import { OverviewPage } from './pages/OverviewPage';
 import { InventoryPage } from './pages/InventoryPage';
@@ -15,229 +9,89 @@ import { AssetDetailPage } from './pages/AssetDetailPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
 import { Button } from './components/Button';
 import { Input } from './components/Input';
+import { FolderOpen, ArrowRight, LoaderCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('overview');
-  const [z, setZ] = useState<number>(8);
-  const [rawAssets, setRawAssets] = useState<FrontendAsset[]>(INITIAL_SAMPLE_ASSETS);
-  const [selectedAssetName, setSelectedAssetName] = useState<string>('Customer PII field encryption');
-  const [scanTargetInput, setScanTargetInput] = useState<string>('github.com/org/payments-platform');
-  const [activeScanId, setActiveScanId] = useState<string>('scan_default');
-  const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [scanCount, setScanCount] = useState<number>(4);
+  const [screen, setScreen] = useState<Screen>('overview');
+  const [z, setZ] = useState(8);
+  const [rawAssets, setAssets] = useState<FrontendAsset[]>([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [source, setSource] = useState<'path' | 'git' | 'upload' | 'image'>('path');
+  const [file, setFile] = useState<File | null>(null);
+  const [tokenInput, setTokenInput] = useState('');
+  const [target, setTarget] = useState('seed_corpus');
+  const [scans, setScans] = useState<ScanResponse[]>([]);
+  const [active, setActive] = useState<ScanResponse | null>(null);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState('');
+  const [connected, setConnected] = useState(false);
+  const generation = useRef(0);
+  const assets = useMemo(() => computeAllAssetsWithZ(rawAssets, z), [rawAssets, z]);
+  const selected = assets.find(a => (a.id || a.name) === selectedId) || assets[0];
+  const selectAsset = (id: string) => { setSelectedId(id); setScreen('detail'); };
 
-  // Load initial data from FastAPI backend if running
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const scans = await fetchScans();
-        if (scans && scans.length > 0) {
-          setScanCount(scans.length);
-          const latest = scans[0];
-          setActiveScanId(latest.scanId);
-          const liveAssets = await fetchLiveAssets(latest.scanId);
-          if (liveAssets && liveAssets.length > 0) {
-            setRawAssets(liveAssets);
-          }
-        } else {
-          // Try fetching without scanId
-          const liveAssets = await fetchLiveAssets();
-          if (liveAssets && liveAssets.length > 0) {
-            setRawAssets(liveAssets);
-          }
-        }
-      } catch (e) {
-        console.warn('Backend offline or initializing; running with prototype dataset.');
-      }
+  async function loadScan(scan: ScanResponse, token: number) {
+    setAssets([]); setActive(scan);
+    let current = scan;
+    while (current.status === 'queued' || current.status === 'running') {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      if (token !== generation.current) return;
+      current = await fetchScan(scan.scanId);
+      if (token !== generation.current) return;
+      setActive(current);
     }
-    loadData();
-  }, []);
-
-  // Client-side reactive recomputation of Mosca ratio and risk tiers whenever Z changes
-  const computedAssets = useMemo(() => {
-    return computeAllAssetsWithZ(rawAssets, z);
-  }, [rawAssets, z]);
-
-  const criticalCount = useMemo(() => {
-    return computedAssets.filter((a) => a.tier === 'critical').length;
-  }, [computedAssets]);
-
-  const selectedAsset = useMemo(() => {
-    return computedAssets.find((a) => a.name === selectedAssetName) || computedAssets[0];
-  }, [computedAssets, selectedAssetName]);
-
-  const handleSelectAsset = (assetName: string) => {
-    setSelectedAssetName(assetName);
-    setCurrentScreen('detail');
-  };
-
-  const handleTriggerScan = async () => {
-    if (!scanTargetInput.trim()) return;
-    setIsScanning(true);
+    if (current.status === 'failed') throw new Error(current.error || 'Scan failed.');
+    const fresh = await fetchLiveAssets(current.scanId);
+    if (token !== generation.current) return;
+    setAssets(fresh); setZ(fresh[0]?.z ?? 8); setConnected(true);
+    const history = await fetchScans();
+    if (token === generation.current) setScans(history);
+  }
+  async function refresh() {
+    const token = ++generation.current;
+    setBusy(true); setError('');
     try {
-      const scanRes = await startScan(scanTargetInput, 'path');
-      if (scanRes) {
-        setActiveScanId(scanRes.scanId);
-        setScanCount((prev) => prev + 1);
-        // Wait briefly for backend processing
-        setTimeout(async () => {
-          const freshAssets = await fetchLiveAssets(scanRes.scanId);
-          if (freshAssets && freshAssets.length > 0) {
-            setRawAssets(freshAssets);
-          }
-          setIsScanning(false);
-        }, 1200);
-      } else {
-        setIsScanning(false);
-      }
-    } catch {
-      setIsScanning(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-paper text-ink font-sans">
-      {/* Top Document Header */}
-      <header className="sticky top-0 z-50 bg-[#F2F4F5]/90 backdrop-blur-md border-b border-border">
-        <div className="max-w-[1180px] mx-auto h-[56px] px-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-              <circle cx="4" cy="4" r="2" fill="#4B5262" />
-              <circle cx="11" cy="4" r="2" fill="#4B5262" />
-              <circle cx="18" cy="4" r="2" fill="#4B5262" />
-              <circle cx="4" cy="11" r="2" fill="#4B5262" />
-              <circle cx="18" cy="11" r="2" fill="#4B5262" />
-              <circle cx="4" cy="18" r="2" fill="#4B5262" />
-              <circle cx="11" cy="18" r="2" fill="#4B5262" />
-              <circle cx="18" cy="18" r="2" fill="#4B5262" />
-              <circle cx="11" cy="11" r="2.4" fill="#0E9C90" />
-              <line x1="4" y1="4" x2="11" y2="11" stroke="#0E9C90" strokeWidth="1" />
-              <line x1="11" y1="11" x2="18" y2="4" stroke="#E1E5E8" strokeWidth="1" />
-            </svg>
-            <span className="font-semibold text-[14px] tracking-tight">ECDAT</span>
-          </div>
-
-          <div className="flex items-center gap-5 text-[13.5px] font-medium text-ink-soft">
-            <button
-              type="button"
-              onClick={() => setCurrentScreen('overview')}
-              className={`hover:text-ink transition-colors cursor-pointer border-none bg-transparent ${
-                currentScreen === 'overview' ? 'text-ink font-semibold' : ''
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentScreen('inventory')}
-              className={`hover:text-ink transition-colors cursor-pointer border-none bg-transparent ${
-                currentScreen === 'inventory' ? 'text-ink font-semibold' : ''
-              }`}
-            >
-              Inventory
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentScreen('heatmap')}
-              className={`hover:text-ink transition-colors cursor-pointer border-none bg-transparent ${
-                currentScreen === 'heatmap' ? 'text-ink font-semibold' : ''
-              }`}
-            >
-              Heatmap
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentScreen('recommend')}
-              className={`hover:text-ink transition-colors cursor-pointer border-none bg-transparent ${
-                currentScreen === 'recommend' ? 'text-ink font-semibold' : ''
-              }`}
-            >
-              Recommendations
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <div className="max-w-[1180px] mx-auto px-6 py-8">
-        {/* Quick Scan Input Bar */}
-        <div className="mb-6 p-4 border border-border rounded-md bg-surface flex flex-col md:flex-row items-stretch md:items-end gap-3 justify-between">
-          <div className="flex-1">
-            <Input
-              label="Repository URL or target path for automated scan"
-              value={scanTargetInput}
-              onChange={(e) => setScanTargetInput(e.target.value)}
-              placeholder="github.com/org/payments-platform"
-              className="w-full"
-            />
-          </div>
-          <Button
-            variant="primary"
-            onClick={handleTriggerScan}
-            disabled={isScanning}
-            className="whitespace-nowrap"
-          >
-            {isScanning ? 'Scanning...' : 'Start scan'}
-          </Button>
-        </div>
-
-        {/* Prototype Label */}
-        <div className="font-mono text-[11.5px] text-ink-faint flex items-center gap-[6px] mb-3">
-          <span className="w-[6px] h-[6px] rounded-full bg-qubit" />
-          Interactive system — {computedAssets.length} assets loaded
-        </div>
-
-        {/* The 5-Screen App Shell */}
-        <AppShell
-          currentScreen={currentScreen}
-          onScreenChange={setCurrentScreen}
-          criticalCount={criticalCount}
-          scanTargetName={scanTargetInput}
-        >
-          {currentScreen === 'overview' && (
-            <OverviewPage
-              assets={computedAssets}
-              scansCount={scanCount}
-              onSelectAsset={handleSelectAsset}
-            />
-          )}
-
-          {currentScreen === 'inventory' && (
-            <InventoryPage assets={computedAssets} onSelectAsset={handleSelectAsset} />
-          )}
-
-          {currentScreen === 'heatmap' && (
-            <HeatmapPage
-              assets={computedAssets}
-              z={z}
-              onZChange={setZ}
-              onSelectAsset={handleSelectAsset}
-            />
-          )}
-
-          {currentScreen === 'detail' && (
-            <AssetDetailPage
-              asset={selectedAsset}
-              z={z}
-              allAssets={computedAssets}
-              onSelectAsset={setSelectedAssetName}
-            />
-          )}
-
-          {currentScreen === 'recommend' && (
-            <RecommendationsPage
-              assets={computedAssets}
-              scanId={activeScanId}
-              onSelectAsset={handleSelectAsset}
-            />
-          )}
-        </AppShell>
-
-        {/* Footer */}
-        <footer className="py-8 text-ink-faint text-[12px] font-mono text-center">
-          ECDAT design system v1.0 — tokens defined in :root, wired to FastAPI backend M7.
-        </footer>
-      </div>
+      const history = await fetchScans();
+      if (token !== generation.current) return;
+      setScans(history); setConnected(true);
+      if (history.length) await loadScan(history[0], token);
+    } catch (e) { if (token === generation.current) setError((e as Error).message); }
+    finally { if (token === generation.current) setBusy(false); }
+  }
+  useEffect(() => { void refresh(); return () => { generation.current++; }; }, []);
+  async function trigger(event: React.FormEvent) {
+    event.preventDefault();
+    const token = ++generation.current;
+    setBusy(true); setError('');
+    try { await loadScan(await (file && (source === 'upload' || source === 'image') ? uploadScan(file, source === 'image' ? 'image' : 'upload') : startScan(target, source === 'upload' ? 'path' : source)), token); }
+    catch (e) { setError((e as Error).message); }
+    finally { if (token === generation.current) setBusy(false); }
+  }
+  async function chooseScan(id: string) {
+    const scan = scans.find(s => s.scanId === id); if (!scan) return;
+    const token = ++generation.current; setBusy(true); setError('');
+    try { await loadScan(scan, token); }
+    catch (e) { setError((e as Error).message); }
+    finally { if (token === generation.current) setBusy(false); }
+  }
+  return <AppShell currentScreen={screen} onScreenChange={setScreen} criticalCount={assets.filter(a => a.tier === 'critical').length} scanTargetName={active?.target}>
+    <form className="scan-panel" onSubmit={trigger}>
+      <div className="flex items-center gap-3"><FolderOpen size={22} className="text-qubit" /><div><h2>Start a discovery scan</h2><p>Scan code, configurations and artifacts to discover cryptographic assets.</p></div></div>
+      <div className="flex gap-3 flex-wrap mt-4 items-center"><label>Input type <select aria-label="Input type" value={source} disabled={busy} onChange={e => { setSource(e.target.value as typeof source); setFile(null); }} className="border border-border rounded-md p-2 ml-2 bg-surface"><option value="path">Local path</option><option value="git">Git repository</option><option value="upload">File or ZIP upload</option><option value="image">Container image or SBOM</option></select></label>
+      {(source === 'upload' || source === 'image') && <input aria-label="Upload scan input" type="file" accept={source === 'image' ? '.json' : undefined} disabled={busy} onChange={e => setFile(e.target.files?.[0] || null)} className="max-w-full" />}</div>
+      <div className="scan-controls"><Input aria-label="Scan target" value={target} onChange={e => setTarget(e.target.value)} placeholder="Local file or directory path" disabled={busy || source === 'upload'} /><Button type="submit" disabled={busy || (source === 'upload' ? !file : !file && !target.trim())}>{busy ? <LoaderCircle size={17} className="animate-spin" /> : <ArrowRight size={17} />}{busy ? 'Scanning / loading…' : 'Start scan'}</Button></div>
+    </form>
+    <details className="mt-3 text-sm text-ink-soft"><summary className="cursor-pointer">Workspace access token</summary><div className="flex gap-2 mt-2"><input aria-label="Workspace access token" type="password" autoComplete="off" value={tokenInput} onChange={e => setTokenInput(e.target.value)} placeholder="Only needed when token protection is enabled" className="min-w-0 flex-1 border border-border rounded-md p-2" /><Button type="button" disabled={busy} onClick={() => { setAccessToken(tokenInput); void refresh(); }}>Connect</Button></div><p className="text-xs mt-1">Held in memory for this tab; re-enter after a reload.</p></details>
+    <div className="workspace-status">
+      <span role="status">{busy ? `${active?.status || 'Connecting'}${active && active.status !== 'completed' ? ` · ${active.progress}%` : ''}` : error ? 'Action needed' : active ? `${assets.length} assets · ${active.status}` : connected ? 'Connected · ready for your first scan' : 'Disconnected'}</span>
+      {scans.length > 0 && <label>Scan history <select aria-label="Scan history" disabled={busy} value={active?.scanId || ''} onChange={e => void chooseScan(e.target.value)}>{scans.map(s => <option key={s.scanId} value={s.scanId}>{s.target.split('/').pop()} · {s.status} · {new Date(s.createdAt.endsWith('Z') ? s.createdAt : s.createdAt + 'Z').toLocaleString()}</option>)}</select></label>}
     </div>
-  );
+    {error && <div role="alert" className="error-panel">{error}<Button variant="secondary" onClick={() => void refresh()} disabled={busy}>Retry connection</Button></div>}
+    {screen === 'overview' && <OverviewPage assets={assets} scansCount={scans.filter(s => s.status === 'completed').length} onSelectAsset={selectAsset} />}
+    {!busy && !error && !assets.length && <div className="empty-state"><FolderOpen size={30} /><h2>{active ? 'No cryptographic assets found' : 'Your inventory starts here'}</h2><p>{active ? 'This scan completed with zero findings. Choose another local target to continue.' : 'Start with seed_corpus, the repository’s test workspace, or enter your own local path.'}</p></div>}
+    {screen === 'inventory' && <InventoryPage assets={assets} onSelectAsset={selectAsset} />}
+    {screen === 'heatmap' && <HeatmapPage assets={assets} z={z} onZChange={setZ} onSelectAsset={selectAsset} />}
+    {screen === 'detail' && selected && <AssetDetailPage asset={selected} z={z} allAssets={assets} onSelectAsset={setSelectedId} />}
+    {screen === 'recommend' && active?.status === 'completed' && <RecommendationsPage assets={assets} scanId={active.scanId} onSelectAsset={selectAsset} />}
+  </AppShell>;
 };

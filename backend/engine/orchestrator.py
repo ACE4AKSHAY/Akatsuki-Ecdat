@@ -51,7 +51,7 @@ def run_scan_pipeline_sync(
     db = SessionLocal()
     try:
         scan_record = db.query(Scan).filter(Scan.id == scan_id).first()
-        if not scan_record:
+        if not scan_record or scan_record.status == "completed":
             return
 
         # Stage 1: Running
@@ -68,11 +68,14 @@ def run_scan_pipeline_sync(
         z_timeline, weights = get_active_threat_model(db, threat_timeline_override)
 
         # Stage 4: Normalization (M4), Risk Scoring (M5), and Recommendations (M6)
+        saved_config = db.get(ThreatModelConfig, 1)
         canonical_assets = normalize_findings(
             findings=raw_findings,
             threat_timeline_z=z_timeline,
             compliance_target=compliance_target,
             weights=weights,
+            shelf_life_defaults=json.loads(saved_config.shelf_life_json) if saved_config else None,
+            migration_effort_defaults=json.loads(saved_config.migration_effort_json) if saved_config else None,
         )
         scan_record.progress = 80.0
         db.commit()
@@ -83,6 +86,9 @@ def run_scan_pipeline_sync(
 
         # Stage 6: Persist Canonical Assets to Relational DB
         # Remove any existing assets for this scan
+        asset_ids = [a.id for a in db.query(Asset).filter(Asset.scan_id == scan_id)]
+        if asset_ids:
+            db.query(Recommendation).filter(Recommendation.asset_id.in_(asset_ids)).delete(synchronize_session=False)
         db.query(Asset).filter(Asset.scan_id == scan_id).delete()
 
         for asset_obj in canonical_assets:
