@@ -1,163 +1,55 @@
-import React, { useState } from 'react';
-import { FrontendAsset, RiskTier } from '../types';
+import React, { useMemo, useState } from 'react';
+import { FrontendAsset } from '../types';
 import { RangeSlider } from '../components/RangeSlider';
 import { RiskChip } from '../components/RiskChip';
+import { formatYears } from '../format';
+import { buildHeatmapRows, riskTiers } from '../heatmap';
 
 interface HeatmapPageProps {
   assets: FrontendAsset[];
   z: number;
   onZChange: (z: number) => void;
-  onSelectAsset?: (assetName: string) => void;
+  onSelectAsset?: (assetId: string) => void;
 }
 
-const critRow: Record<string, number> = {
-  Critical: 0,
-  High: 1,
-  Medium: 2,
-  Low: 3,
-};
+export const HeatmapPage: React.FC<HeatmapPageProps> = ({ assets, z, onZChange, onSelectAsset }) => {
+  const [selectedCell, setSelectedCell] = useState('');
+  const rows = useMemo(() => buildHeatmapRows(assets), [assets]);
+  const selected = rows.flatMap(row => row.cells).find(cell => cell.key === selectedCell);
+  const criticalCount = assets.filter(asset => asset.tier === 'critical').length;
 
-const tierColorMap: Record<RiskTier, string> = {
-  critical: 'var(--risk-critical, #B3261E)',
-  high: 'var(--risk-high, #B5590F)',
-  medium: 'var(--risk-medium, #93790E)',
-  low: 'var(--risk-low, #2E7D5B)',
-};
-
-export const HeatmapPage: React.FC<HeatmapPageProps> = ({
-  assets,
-  z,
-  onZChange,
-  onSelectAsset,
-}) => {
-  const [hoveredAsset, setHoveredAsset] = useState<FrontendAsset | null>(null);
-  const maxR = 2.5;
-
-  const thresholdLeft = Math.min((1 / maxR) * 100, 100);
-
-  // Position calculation with row jitter
-  const rowCounts: Record<number, number> = {};
-  const dotElements = assets.map((a, index) => {
-    const r = a.r ?? (a.x + a.y) / z;
-    const tier = a.tier ?? (a.autoEsc ? 'critical' : (r >= 1.2 ? 'critical' : (r >= 0.9 ? 'high' : (r >= 0.6 ? 'medium' : 'low'))));
-    const critKey = a.businessCriticality || 'Medium';
-    const rowIndex = critRow[critKey] ?? 2;
-
-    const jitter = ((rowCounts[rowIndex] || 0) % 5) * 3;
-    rowCounts[rowIndex] = (rowCounts[rowIndex] || 0) + 1;
-
-    const left = Math.min((r / maxR) * 100, 97);
-    const top = Math.min(rowIndex * 25 + 6 + jitter, 88);
-
-    return {
-      asset: a,
-      r,
-      tier,
-      left,
-      top,
-      key: `${a.name}-${index}`,
-    };
-  });
-
-  const criticalCount = assets.filter((a) => a.tier === 'critical').length;
-
-  return (
-    <div className="border border-border rounded-md p-5 bg-surface">
-      {/* Slider */}
-      <RangeSlider
-        label="Years until a quantum computer breaks today's crypto (Z)"
-        value={z}
-        min={3}
-        max={20}
-        step={1}
-        onChange={onZChange}
-        className="max-w-full mb-2"
-      />
-
-      <p className="text-[12.5px] text-ink-soft mt-[6px]">
-        At a <b className="text-ink font-mono">{z}-year</b> threat timeline,{' '}
-        <span className="text-risk-critical font-medium">{criticalCount}</span> of {assets.length} assets are Critical.
-      </p>
-
-      {/* Quadrant Canvas */}
-      <div className="relative h-[280px] mt-6 ml-[70px] border-l border-b border-border-strong bg-paper/20">
-        {/* Row Labels (Y-axis: Business Criticality) */}
-        <div className="absolute -left-[70px] w-[64px] text-[11px] text-ink-faint text-right top-[0%]">Critical</div>
-        <div className="absolute -left-[70px] w-[64px] text-[11px] text-ink-faint text-right top-[25%]">High</div>
-        <div className="absolute -left-[70px] w-[64px] text-[11px] text-ink-faint text-right top-[50%]">Medium</div>
-        <div className="absolute -left-[70px] w-[64px] text-[11px] text-ink-faint text-right top-[75%]">Low</div>
-
-        {/* Threshold Line at r = 1 */}
-        <div
-          className="absolute top-0 bottom-0 w-[1px] bg-ink-faint/35 z-0"
-          style={{ left: `${thresholdLeft}%` }}
-        />
-        <div
-          className="absolute -top-[18px] text-[10.5px] text-ink-faint font-mono -translate-x-1/2"
-          style={{ left: `${thresholdLeft}%` }}
-        >
-          r = 1
-        </div>
-
-        {/* Asset Dots */}
-        {dotElements.map((item) => {
-          const bg = tierColorMap[item.tier];
-          const isEscalated = item.asset.autoEsc;
-
-          return (
-            <button
-              type="button"
-              aria-label={`${item.asset.name} at ${item.asset.loc}`}
-              key={item.key}
-              className={`heatmap-dot z-10 ${isEscalated ? 'is-escalated' : ''}`}
-              style={{
-                left: `${item.left}%`,
-                top: `${item.top}%`,
-                background: bg,
-              }}
-              onMouseEnter={() => setHoveredAsset(item.asset)}
-              onMouseLeave={() => setHoveredAsset(null)}
-              onClick={() => onSelectAsset?.(item.asset.id || item.asset.name)}
-              title={`${item.asset.name} — ${item.asset.algo} — r=${item.r.toFixed(2)}${
-                isEscalated ? ' (auto-escalated: classically broken)' : ''
-              }`}
-            />
-          );
-        })}
-      </div>
-
-      {/* X-axis Label */}
-      <div className="ml-[70px] mt-2 text-[11px] text-ink-faint font-mono">
-        urgency ratio r = (X + Y) / Z →
-      </div>
-
-      {/* Hover Info Card */}
-      {hoveredAsset && (
-        <div className="mt-4 p-3 bg-paper border border-border rounded-sm flex items-center justify-between text-[12.5px]">
-          <div>
-            <span className="font-semibold text-ink">{hoveredAsset.name}</span>{' '}
-            <span className="font-mono text-ink-soft">({hoveredAsset.algo})</span>
-            <div className="text-[11.5px] text-ink-faint mt-1">
-              X={hoveredAsset.x} yrs, Y={hoveredAsset.y} yrs, Z={z} yrs →{' '}
-              <b className="font-mono text-ink">r={((hoveredAsset.x + hoveredAsset.y) / z).toFixed(2)}</b>
-              {hoveredAsset.autoEsc && ' (Classically broken auto-escalation)'}
-            </div>
-          </div>
-          <RiskChip tier={hoveredAsset.tier || 'critical'} />
-        </div>
-      )}
-
-      {/* Legend Row */}
-      <div className="flex gap-5 mt-5 flex-wrap items-center">
-        <RiskChip tier="critical" />
-        <RiskChip tier="high" />
-        <RiskChip tier="medium" />
-        <RiskChip tier="low" />
-        <span className="text-[12.5px] text-ink-soft flex items-center gap-[6px]">
-          <span className="w-[12px] h-[12px] rounded-full bg-risk-critical ring-[3px] ring-risk-critical/20 inline-block" />
-          ring = classically broken (auto-escalated)
-        </span>
+  return <section className="heatmap-panel" aria-label="Risk heatmap">
+    <RangeSlider
+      label="Quantum threat timeline (Z)"
+      description="Z is the assumed number of years until a quantum computer could break vulnerable cryptography. Use it to compare migration scenarios; it is not a prediction."
+      value={z} min={0.5} max={50} step="any" unit="years" onChange={onZChange}
+      className="max-w-full"
+    />
+    <p className="heatmap-summary">At a <b>{formatYears(z)}-year</b> threat timeline, <b className="text-risk-critical">{criticalCount}</b> of {assets.length} assets are Critical.</p>
+    <div className="heatmap-heading"><h2>Risk by business criticality</h2><p>Each cell shows an asset count. Select a cell to inspect the findings.</p></div>
+    <div className="heatmap-scroll">
+      <div className="heatmap-grid" role="group" aria-label="Asset counts by business criticality and risk tier">
+        <div className="heatmap-axis">Business<br />criticality ↓</div>
+        {riskTiers.map(tier => <div className="heatmap-column" key={tier}><RiskChip tier={tier} /></div>)}
+        {rows.map(row => <React.Fragment key={row.label}>
+          <div className="heatmap-row-label">{row.label}<small>{row.total} assets</small></div>
+          {row.cells.map(cell => <button
+            type="button" key={cell.key} className={`heatmap-cell ${cell.assets.length ? `heatmap-${cell.tier}` : 'heatmap-empty'}`}
+            disabled={!cell.assets.length} aria-pressed={selectedCell === cell.key}
+            aria-label={`${row.label} business criticality, ${cell.tier} risk: ${cell.assets.length} assets`}
+            title={`${cell.assets.length} assets; ${cell.assets.filter(asset => asset.autoEsc).length} classically broken and automatically escalated`}
+            onClick={() => setSelectedCell(cell.key)}
+          ><strong>{cell.assets.length || '—'}</strong><span>{cell.assets.length === 1 ? 'asset' : 'assets'}</span></button>)}
+        </React.Fragment>)}
       </div>
     </div>
-  );
+    <p className="heatmap-note">Columns show the assessed risk tier. Known classically broken algorithms stay Critical at every timeline. X is data confidentiality lifetime; Y is migration duration. Urgency ratio r = (X + Y) / Z.</p>
+    {selected && <section className="heatmap-selection" aria-label="Selected heatmap assets">
+      <div className="flex items-center justify-between gap-3 mb-3"><h3>{selected.businessCriticality} business criticality · {selected.tier} risk</h3><button type="button" className="text-xs text-ink-soft underline" onClick={() => setSelectedCell('')}>Clear selection</button></div>
+      {selected.assets.length ? <div className="heatmap-assets">{selected.assets.map((asset, index) => <button type="button" key={asset.id || index} onClick={() => onSelectAsset?.(asset.id || asset.name)}>
+        <div><b>{asset.name}</b><span>{asset.loc}</span><small>X: {formatYears(asset.x)} years · Y: {formatYears(asset.y)} years · r: {(asset.r ?? (asset.x + asset.y) / z).toFixed(2)}</small></div>
+        <RiskChip tier={selected.tier} />
+      </button>)}</div> : <p className="text-sm text-ink-soft">No assets remain in this cell at the selected timeline.</p>}
+    </section>}
+  </section>;
 };

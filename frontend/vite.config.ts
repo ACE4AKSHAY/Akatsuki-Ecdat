@@ -7,6 +7,6 @@ const proxy = { '/api': {
 } };
 export default defineConfig({
   plugins: [react()],
-  server: { host: '127.0.0.1', port: 3000, proxy },
-  preview: { host: '127.0.0.1', port: 3000, proxy },
+  server: { host: '127.0.0.1', port: 3001, strictPort: true, proxy },
+  preview: { host: '127.0.0.1', port: 3001, strictPort: true, proxy },
 });

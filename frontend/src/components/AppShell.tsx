@@ -1,6 +1,7 @@
 import React from 'react';
 import { LayoutDashboard, Database, ChartNoAxesCombined, FileSearch, Lightbulb, ShieldCheck, Monitor } from 'lucide-react';
 import { Screen } from '../types';
+import { targetName } from '../format';
 interface Props { currentScreen: Screen; onScreenChange: (screen: Screen) => void; criticalCount: number; scanTargetName?: string; children: React.ReactNode; }
 const screens = [
   { id: 'overview', label: 'Overview', title: 'Cryptographic posture', subtitle: 'Discover your cryptographic assets. Plan your next move.', icon: LayoutDashboard },
@@ -21,7 +22,7 @@ export const AppShell: React.FC<Props> = ({ currentScreen, onScreenChange, scanT
       <div className="workspace-label"><Monitor size={17} />Local workspace</div>
       <header className="page-heading"><h1>{current.title}</h1><p>{current.subtitle}</p></header>
       {children}
-      <footer className="app-footer"><span><b>ECDAT</b> · Cryptographic asset discovery</span><span title={scanTargetName}>{scanTargetName ? `Workspace: ${scanTargetName.split('/').pop()}` : 'Local workspace'}</span></footer>
+      <footer className="app-footer"><span><b>ECDAT</b> · Cryptographic asset discovery</span><span title={scanTargetName}>{scanTargetName ? `Workspace: ${targetName(scanTargetName)}` : 'Local workspace'}</span></footer>
     </main>
   </div>;
 };

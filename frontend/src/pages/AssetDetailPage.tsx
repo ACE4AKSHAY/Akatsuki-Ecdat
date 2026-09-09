@@ -1,6 +1,7 @@
 import React from 'react';
 import { FrontendAsset } from '../types';
 import { RiskChip } from '../components/RiskChip';
+import { formatYears } from '../format';
 
 interface AssetDetailPageProps {
   asset: FrontendAsset;
@@ -60,8 +61,8 @@ export const AssetDetailPage: React.FC<AssetDetailPageProps> = ({
         <div>
           <div className="text-[12.5px] font-medium opacity-85">Mosca's inequality: X + Y &gt; Z</div>
           <div className="text-[13px] mt-[2px]">
-            {asset.x} yrs shelf-life + {asset.y} yrs migration{' '}
-            {asset.x + asset.y > z ? '>' : '≤'} {z} yr threat timeline —{' '}
+            {formatYears(asset.x)} yrs shelf-life + {formatYears(asset.y)} yrs migration{' '}
+            {asset.x + asset.y > z ? '>' : '≤'} {formatYears(z)} yr threat timeline —{' '}
             {asset.autoEsc
               ? 'Classically broken primitive, immediate deprecation required.'
               : (asset.x + asset.y > z ? 'past the threshold, migrate now.' : 'within safety threshold.')}
@@ -76,15 +77,18 @@ export const AssetDetailPage: React.FC<AssetDetailPageProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-5">
         <div className="border border-border rounded-md p-4 text-center bg-surface">
           <div className="text-[11px] text-ink-faint">X · shelf-life</div>
-          <div className="text-[22px] font-semibold mt-[6px] font-mono text-ink">{asset.x} yrs</div>
+          <div className="text-[22px] font-semibold mt-[6px] font-mono text-ink">{formatYears(asset.x)} yrs</div>
+          <p className="text-xs text-ink-soft mt-2">How long the data must remain confidential.</p>
         </div>
         <div className="border border-border rounded-md p-4 text-center bg-surface">
           <div className="text-[11px] text-ink-faint">Y · migration time</div>
-          <div className="text-[22px] font-semibold mt-[6px] font-mono text-ink">{asset.y} yrs</div>
+          <div className="text-[22px] font-semibold mt-[6px] font-mono text-ink">{formatYears(asset.y)} yrs</div>
+          <p className="text-xs text-ink-soft mt-2">Estimated time needed to complete migration.</p>
         </div>
         <div className="border border-border rounded-md p-4 text-center bg-surface">
           <div className="text-[11px] text-ink-faint">Z · threat timeline</div>
-          <div className="text-[22px] font-semibold mt-[6px] font-mono text-ink">{z} yrs</div>
+          <div className="text-[22px] font-semibold mt-[6px] font-mono text-ink">{formatYears(z)} yrs</div>
+          <p className="text-xs text-ink-soft mt-2">Assumed time until a relevant quantum threat.</p>
         </div>
       </div>
 

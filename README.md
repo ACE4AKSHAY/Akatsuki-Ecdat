@@ -1,121 +1,120 @@
 # ECDAT Cryptographic Asset Discovery
 
-ECDAT is a local-first React dashboard and FastAPI pipeline that discovers cryptographic assets in source code, dependency manifests, lightweight binary evidence, infrastructure configuration, certificates, and container package inventories. It normalizes findings into a CycloneDX-aligned CBOM model, estimates migration urgency with Mosca's inequality, recommends migration actions, and exports reviewable reports.
+ECDAT is a local React dashboard and FastAPI pipeline for discovering cryptographic assets in source code, dependency manifests, binary evidence, infrastructure configuration, certificates and container package inventories. It normalizes findings into a CycloneDX-aligned CBOM model, estimates migration urgency with Mosca's inequality, recommends review actions and exports reports.
 
-## Current capability
+## Start on Windows
 
-- Scan a local file or directory through a bounded static snapshot.
-- Clone and scan a public HTTPS Git repository from an allowed host.
-- Upload one source file or a ZIP workspace up to 20 MB.
-- Analyze a CycloneDX or Trivy JSON package inventory, or invoke an installed Trivy executable for a live image reference.
-- Run the existing M1 source, M2 dependency and binary, and M3 infrastructure and certificate scanners through one orchestrated pipeline.
-- Search, filter, paginate, inspect, and compare risk findings in the responsive dashboard.
-- Explore alternative quantum threat timelines without overwriting the saved assessment.
-- Export PDF, CSV, XLSX, and CycloneDX JSON reports.
-- Recover queued or interrupted jobs after an API restart with the persisted single-process worker queue.
+Use the updated source package or a checkout containing `ecdat.bat`. Install **Python 3.10+ (3.12 recommended)**, **Node.js 22.12+ with npm**, and **Git 2.30+**. Extract the source into a writable folder, then double-click `ecdat.bat`:
 
-The scanner reads files statically and does not execute the target project's code.
+1. Choose **2** to set up dependencies and build the frontend.
+2. Choose **3** to run both services and open the dashboard.
+3. Keep the window open; press Ctrl+C to stop the services.
 
-## Run locally
+For Command Prompt, from the repository root:
 
-Python 3.10 or newer, Node.js 22.12 or newer, and Git are required. Trivy is optional and is only needed when a live container image reference is scanned.
-
-```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```bat
+ecdat.bat setup
+ecdat.bat check
+ecdat.bat dev
 ```
 
-In another terminal, from the repository root:
+In PowerShell use `.\ecdat.bat` instead. The menu also supports a built frontend preview, individual services, tests and manual command output. **[Full setup and run guide](documentation/SETUP_AND_RUN.md)** covers installation commands, versions, permissions, tokens, alternate ports and troubleshooting. No administrator session or PowerShell execution-policy change is required to run the project.
+
+Default URLs are **http://127.0.0.1:3001/** for the dashboard and **http://127.0.0.1:8000/health** for API health. Vite now uses a fixed port and reports conflicts instead of silently moving to another port.
+
+## Share on the local network
+
+Choose **9** in `ecdat.bat` or run `ecdat.bat lan`. Open the printed `http://HOST_IPV4:3001/` link from another device on the same trusted network. Paste the printed token under **Workspace access token** and click **Connect**. LAN mode generates a token unless `ECDAT_API_TOKEN` is already configured. The API stays on loopback; only the dashboard port needs a Windows Private-profile firewall rule. See the [LAN setup and connection checks](documentation/SETUP_AND_RUN.md#share-with-other-devices-on-the-local-network).
+
+## macOS and Linux
+
+Use a supported Python interpreter; replace `python3.12` if your installed Python 3.10+ command differs:
+
+```sh
+python3.12 scripts/launcher.py setup
+python3.12 scripts/launcher.py dev
+```
+
+Manual startup after setup, in separate terminals from the repository root:
+
+```sh
+.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
 
 ```sh
 cd frontend
-npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:3000. For the shortest demonstration, choose `Local path` and scan `demo/workspace`. Relative paths resolve from the backend working directory.
+On Windows the backend equivalent is `.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000`; use `npm.cmd run dev` for the frontend. Do not copy a virtual environment or `node_modules` between computers.
 
-## Input modes
+## Current capability
 
-| Mode | Value to provide | Processing |
-| --- | --- | --- |
-| Local path | Existing file or directory | Copies ordinary files into a bounded temporary snapshot before scanning |
-| Git repository | Public HTTPS repository URL | Performs a shallow clone from an allowed host and scans a bounded snapshot |
-| File or ZIP upload | Source file or ZIP workspace | Stores the upload in the ECDAT state directory; ZIP extraction rejects traversal, links, and encrypted members |
-| Image inventory | CycloneDX or Trivy JSON file, or live image reference | Reads package evidence offline or invokes `trivy image --format cyclonedx` when Trivy is installed |
+- Scan a bounded snapshot of a local file/directory or a public HTTPS Git repository.
+- Upload one source file or a ZIP workspace up to 20 MB.
+- Read a CycloneDX or Trivy JSON package inventory; live image input additionally requires Trivy.
+- Run source, dependency/binary, infrastructure and certificate discovery through one pipeline.
+- Search and filter inventory, inspect asset evidence and review migration recommendations.
+- Explore a temporary quantum threat timeline with years shown to at most two decimals and an explanation of X, Y and Z.
+- Review a compact heatmap of counts by business criticality and risk tier; select a cell to inspect every grouped asset.
+- Export PDF, CSV, XLSX and CycloneDX-aligned JSON using the saved assessment.
+- Reopen history, delete the selected finished scan or delete all history after confirmation.
+- Recover queued or interrupted jobs with a persisted single-worker queue and a cross-platform process lock.
 
-Default allowed Git hosts are GitHub, GitLab, and Bitbucket. Configure a comma-separated replacement list with `ECDAT_GIT_HOSTS`.
+Scanned project code is read statically and is not executed. Missing targets produce errors; completed empty scans contain zero assets.
 
-## Demonstration data
+## Demonstration
 
-- `demo/workspace` contains a small Python, Nginx, and dependency example.
-- `demo/image-inventory.json` is an offline container package inventory.
-- `scripts/demo_smoke.py` runs both fixtures through the API and downloads all report formats.
-
-## Documentation
-
-- [`documentation/ECDAT_Technical_Reference.docx`](documentation/ECDAT_Technical_Reference.docx) explains the objective, architecture, modules, dependencies, technology stack, current outcome, limitations, references, and future scope.
-- [`documentation/ECDAT_Usage_and_Demo_Guide.docx`](documentation/ECDAT_Usage_and_Demo_Guide.docx) provides setup, usage, demonstration steps, sample inputs, expected results, and troubleshooting guidance.
+Choose **Local path** and scan `demo/workspace`. The supplied fixture produces **10 assets and 3 Critical findings** with the default assessment. `demo/image-inventory.json` is an offline container package example with **2 findings**. Relative paths resolve from the backend repository root.
 
 With the API running:
 
 ```sh
-.venv/bin/python scripts/demo_smoke.py
+.venv/bin/python scripts/demo_smoke.py --output work/demo-results
 ```
 
-The verified review build found 10 assets with 3 Critical results in `demo/workspace`, 2 assets in the offline image inventory, and 51 assets in a scan of this public Git repository. Counts can change when detection rules or repository content change.
+On Windows use `.venv\Scripts\python.exe scripts\demo_smoke.py --output work\demo-results`. Add `--git` to also scan this public repository. Git result counts depend on the current repository content.
 
-## Application workflow
-
-1. Start a scan and watch the queued, running, completed, or failed state.
-2. Review risk distribution and the latest scan summary on Overview.
-3. Search inventory by algorithm, location, or classification and combine it with risk filters.
-4. Open an asset to inspect its occurrence, risk inputs, score, and migration recommendation.
-5. Change the Z timeline on Risk Heatmap to compare urgency assumptions.
-6. Export PDF, CSV, XLSX, or CycloneDX JSON from Recommendations.
-7. Reopen earlier results with the paginated scan history selector.
-
-There are no implicit demo results. Missing targets are rejected, completed empty scans contain zero assets, and API errors are displayed with retry controls.
+History deletion removes saved scans, findings, recommendations, queued-job options and stored report data. Source files, uploaded input copies under `.ecdat/uploads` and reports already downloaded to disk are kept. Deletion cannot be undone. Queued/running scans cannot be deleted; deleting all is rejected while any scan is active.
 
 ## Configuration
 
-- `DATABASE_URL` defaults to `sqlite:///./ecdat.db`.
-- `ECDAT_STATE_DIR` defaults to `.ecdat` and stores uploads, temporary ingestion state, and the worker lock.
-- `ECDAT_API_TOKEN` enables bearer-token protection for every endpoint except `/health`.
-- `ECDAT_CORS_ORIGINS` accepts a comma-separated origin list. Local development origins are allowed by default.
-- `ECDAT_GIT_HOSTS` accepts a comma-separated HTTPS Git host allowlist.
-- `API_PROXY_TARGET` sets the Vite development proxy target and defaults to `http://127.0.0.1:8000`.
+| Setting | Purpose and default |
+| --- | --- |
+| `DATABASE_URL` | Database connection; defaults to `sqlite:///./ecdat.db` |
+| `ECDAT_STATE_DIR` | Uploads, ingestion state and worker lock; defaults to `.ecdat` |
+| `ECDAT_API_TOKEN` | Optional shared bearer token on every endpoint except `/health` |
+| `ECDAT_CORS_ORIGINS` | Comma-separated allowed browser origins |
+| `ECDAT_GIT_HOSTS` | HTTPS Git host allowlist; GitHub, GitLab and Bitbucket by default |
+| `API_PROXY_TARGET` | Vite API target; defaults to `http://127.0.0.1:8000` |
 
-The API documentation is available at http://127.0.0.1:8000/docs. Frontend requests use `/api/*`; Vite removes that prefix before proxying to FastAPI. A production deployment must serve `frontend/dist` and apply the same proxy behavior.
+The launcher accepts `--api-port` and `--ui-port`, configures the proxy, checks readiness and writes logs to `.ecdat/logs`. Example: `ecdat.bat dev --api-port 8010 --ui-port 3010`. Default modes bind to loopback. `lan` shares the built dashboard on all IPv4 interfaces while the API remains behind its loopback proxy. Local preview is for reviewing a built bundle, not a production hosting system.
+
+API documentation is at http://127.0.0.1:8000/docs. Frontend `/api/*` requests are proxied to FastAPI with the `/api` prefix removed. Production hosting needs equivalent proxy behavior. Token protection also applies to API documentation and deletion endpoints.
 
 ## Validation
 
-```sh
-.venv-runtime/bin/pytest -q
-cd frontend
-npm test
-npm run build
+```bat
+ecdat.bat test
 ```
 
-The current review build passes 66 backend tests and 14 frontend tests, and produces a successful frontend production build. For isolated API test storage, set `DATABASE_URL=sqlite:////absolute/path/to/test.db` before running pytest.
+Or run `.venv/bin/python scripts/launcher.py test` on macOS/Linux. The individual checks are `.venv/bin/pytest -q`, `npm test` and `npm run build` (the npm commands run in `frontend`). Pytest uses a temporary database and worker state directory. An optional `ECDAT_TEST_DATABASE_URL` must point only to dedicated test data.
 
-## Security and operational boundaries
+The update passes **83 backend tests and 23 frontend tests**, plus a production build. Browser validation covers desktop/mobile heatmap behavior, history deletion and core scan/export flows. The launcher was exercised through a fresh local installation in a path containing spaces on macOS; the new [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
 
-- Local workspaces and Git clones are capped at 100 MB and 10,000 regular files after dependency and output exclusions. Symbolic links are not followed.
-- Uploads are capped at 20 MB. ZIP input is capped at 100 MB expanded size and 10,000 entries.
-- Git ingestion accepts HTTPS URLs without embedded credentials, query strings, fragments, or nonstandard ports. Clones are shallow, noninteractive, and time out after 120 seconds.
-- The included queue is durable across API restarts but intentionally permits one worker for each state directory. It is not a distributed job system.
-- Optional token authentication is a shared bearer token. Enterprise user accounts, SSO, roles, and tenant isolation remain future work.
+The [test and sample-data map](documentation/TEST_DATA.md) identifies automated tests, demonstration inputs and all four self-signed certificate fixtures. Certificate fixtures are scanner inputs; do not install them as trusted roots or use them for dashboard HTTPS.
 
-## Current limitations
+## Documentation
 
-- Live image scanning depends on an external Trivy installation and access to the selected image registry. This environment verified the offline image-inventory path; Docker was unavailable and Trivy was not installed for a live image test.
-- Source scanning currently targets Python, Java, JavaScript, and Go. Binary inspection is based on strings and symbols rather than disassembly.
-- Package and algorithm matches come from curated registries and static rules. Findings, risk values, and recommendations require human review and are not a compliance certification.
-- The exporter uses CycloneDX 1.6 vocabulary, but formal schema interoperability should be validated before production integration.
-- The heatmap recomputes a temporary Z scenario; exported reports retain the saved scan assessment.
-- SQLite and the single-worker queue suit local review and a controlled demo. Production use needs an external database, distributed workers, stronger identity controls, observability, retention controls, and deployment hardening.
+- [Test code and sample inputs](documentation/TEST_DATA.md): test suites, demonstration files and certificate properties.
+- [Setup and run guide](documentation/SETUP_AND_RUN.md): Windows commands, launcher menu, requirements, permissions, usage and troubleshooting.
+- [Technical reference](documentation/ECDAT_Technical_Reference.docx): objective, architecture, modules, stack, implementation boundaries and future scope.
+- [Usage and demo guide](documentation/ECDAT_Usage_and_Demo_Guide.docx): installation, operation, sample data and demonstration steps.
 
-Changes are prepared on `improve/integration-ui` for local review. No remote push or merge is required to inspect them.
+## Boundaries and remaining limitations
+
+Local/Git snapshots are limited to 100 MB and 10,000 files after dependency/output exclusions. Uploads are limited to 20 MB; ZIP expanded content is limited to 100 MB and 10,000 entries. Symbolic links are not followed. HTTPS Git inputs are allowlisted, shallow and noninteractive, with a 120-second clone limit.
+
+Source AST scanning currently targets Python, Java, JavaScript and Go. Binary inspection uses strings and optional symbols, with a pure-Python strings fallback when native tools are absent. Rules and package registries are curated, and all findings and migration recommendations require human review.
+
+Live image scanning requires an external Trivy installation and registry access; the offline JSON route is verified, but live Trivy scans remain unverified here. The exporter uses CycloneDX 1.6 vocabulary; formal interoperability needs dedicated validation. SQLite, a single worker and an optional shared token support local review. Distributed workers, enterprise identity, tenant isolation, managed deployment and stronger operational controls remain future work.
