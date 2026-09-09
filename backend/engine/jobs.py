@@ -1,6 +1,6 @@
 """Single-process durable queue. Run exactly one API worker per state directory."""
 import json
-import fcntl
+from filelock import FileLock, Timeout
 from backend.ingestion import state_dir
 import logging
 import threading
@@ -38,14 +38,17 @@ class JobWorker:
         self.thread = threading.Thread(target=self.run, daemon=True, name='ecdat-scan-worker')
 
     def start(self):
-        self.lock_file = (state_dir() / 'worker.lock').open('a+')
+        self.worker_lock = FileLock(str(state_dir() / 'worker.lock'), timeout=0)
         try:
-            fcntl.flock(self.lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            self.lock_file.close()
+            self.worker_lock.acquire()
+        except Timeout as exc:
             raise RuntimeError('Another ECDAT worker owns this state directory. Run one API worker.') from exc
-        recover_interrupted()
-        self.thread.start()
+        try:
+            recover_interrupted()
+            self.thread.start()
+        except Exception:
+            self.worker_lock.release()
+            raise
 
     def run(self):
         while not self.stop_event.is_set():
@@ -60,4 +63,4 @@ class JobWorker:
         self.stop_event.set()
         self.thread.join(timeout=195)
         if not self.thread.is_alive():
-            self.lock_file.close()
+            self.worker_lock.release()

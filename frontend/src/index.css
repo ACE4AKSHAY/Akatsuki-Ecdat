@@ -176,3 +176,39 @@ td { border-bottom:1px solid var(--border); }
 @media(max-width:1150px) { .app-layout { grid-template-columns:195px minmax(0,1fr); } .app-main { padding:24px 22px 0; } .metric { padding:15px; } .metric-icon { width:32px; height:32px; } .overview-grid { grid-template-columns:1fr; } }
 @media(max-width:700px) { .app-layout { display:block; } .app-sidebar { position:static; height:auto; padding:15px; } .brand { font-size:26px; padding:0 0 15px; } .brand span,.sidebar-footer { display:none; } .app-sidebar nav { flex-direction:row; overflow-x:auto; gap:4px; } .app-sidebar nav button { padding:10px; font-size:12px; } .app-main { padding:18px 16px 0; } .workspace-label { margin-bottom:20px; } .page-heading p { font-size:14px; } .scan-panel { padding:18px; } .scan-controls { grid-template-columns:1fr; } .scan-controls button { min-height:44px; } .metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .metric strong { font-size:30px; } .metric-icon { display:none; } .dashboard-panel { padding:18px; } .workspace-status label { max-width:100%; } .workspace-status select { max-width:230px; } .app-footer { flex-direction:column; gap:5px; } .error-panel { flex-direction:column; align-items:stretch; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; animation:none !important; scroll-behavior:auto !important; } }
+
+.history-controls { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; min-width:0; }
+.history-delete { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; border:1px solid var(--border-strong); border-radius:6px; background:var(--surface); color:#a42e3b; cursor:pointer; }
+.history-delete:hover:not(:disabled) { background:#fff0f1; border-color:#d99ca3; }
+.history-delete:disabled { opacity:.45; cursor:not-allowed; }
+.heatmap-panel { border:1px solid var(--border); border-radius:12px; padding:24px; background:var(--surface); }
+.heatmap-summary { font-size:13px; color:var(--ink-soft); margin-top:14px; }
+.heatmap-heading { margin:24px 0 14px; }
+.heatmap-heading h2 { font-size:18px; font-weight:650; }
+.heatmap-heading p { color:var(--ink-soft); font-size:12px; margin-top:3px; }
+.heatmap-scroll { overflow-x:auto; }
+.heatmap-grid { display:grid; grid-template-columns:100px repeat(4,minmax(55px,1fr)); gap:8px; min-width:330px; }
+.heatmap-axis { font-size:11px; line-height:1.45; color:var(--ink-soft); align-self:center; }
+.heatmap-column { text-align:center; padding:5px 0; }
+.heatmap-row-label { align-self:center; font-size:12px; font-weight:600; }
+.heatmap-row-label small { display:block; font-size:10px; font-weight:400; color:var(--ink-soft); }
+.heatmap-cell { min-height:66px; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid transparent; border-radius:8px; cursor:pointer; }
+.heatmap-cell strong { font-size:24px; font-variant-numeric:tabular-nums; line-height:1.2; }
+.heatmap-cell span { font-size:10px; }
+.heatmap-cell:hover:not(:disabled),.heatmap-cell[aria-pressed=true] { outline:2px solid currentColor; outline-offset:-3px; }
+.heatmap-critical { background:#fde7e9; color:#ae2835; }
+.heatmap-high { background:#fff0df; color:#a95b14; }
+.heatmap-medium { background:#faf3d5; color:#80620b; }
+.heatmap-low { background:#dff3ed; color:#086e57; }
+.heatmap-empty { background:#f4f7fa; color:#a7b4c1; cursor:default; border-color:#edf1f5; }
+.heatmap-empty span { visibility:hidden; }
+.heatmap-note { color:var(--ink-soft); font-size:11px; line-height:1.6; margin-top:16px; }
+.heatmap-selection { margin-top:20px; padding-top:18px; border-top:1px solid var(--border); }
+.heatmap-selection h3 { font-size:13px; font-weight:600; }
+.heatmap-assets { max-height:290px; overflow-y:auto; }
+.heatmap-assets > button { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; text-align:left; padding:12px 4px; border-bottom:1px solid var(--border); }
+.heatmap-assets > button:hover { background:#f5f9fc; }
+.heatmap-assets > button > div { min-width:0; }
+.heatmap-assets b { font-size:13px; }
+.heatmap-assets span:not([class]),.heatmap-assets small { display:block; color:var(--ink-soft); font-size:11px; overflow-wrap:anywhere; }
+@media(max-width:700px) { .history-controls { justify-content:flex-start; } .heatmap-panel { padding:16px; } .heatmap-grid { grid-template-columns:72px repeat(4,minmax(48px,1fr)); gap:5px; min-width:290px; } .heatmap-column > span { font-size:10px; padding:4px; gap:3px; } .heatmap-cell { min-height:58px; } .heatmap-cell strong { font-size:21px; } }

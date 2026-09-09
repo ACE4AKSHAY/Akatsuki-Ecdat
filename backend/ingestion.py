@@ -74,7 +74,7 @@ def prepared_target(source_type, target):
             destination = Path(tmp) / 'repository'
             env = dict(os.environ, GIT_TERMINAL_PROMPT='0', GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull)
             try:
-                result = subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', '-c', 'http.followRedirects=false',
+                result = subprocess.run(['git', '-c', f'core.hooksPath={os.devnull}', '-c', 'http.followRedirects=false',
                     '-c', 'protocol.file.allow=never', 'clone', '--depth', '1', '--single-branch', '--no-tags',
                     '--', validate_git_url(target), str(destination)], env=env, capture_output=True, timeout=120)
             except subprocess.TimeoutExpired as exc:

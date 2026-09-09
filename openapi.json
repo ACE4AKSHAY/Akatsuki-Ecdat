@@ -7,6 +7,24 @@
   },
   "paths": {
     "/scans": {
+      "delete": {
+        "tags": [
+          "Scans"
+        ],
+        "summary": "Delete All Scans",
+        "description": "Remove all saved history; reject the whole action while any scan is active.",
+        "operationId": "delete_all_scans_scans_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Scans"
@@ -107,26 +125,66 @@
         }
       }
     },
-    "/scans/upload": {
-      "post": {
+    "/scans/{scan_id}": {
+      "delete": {
         "tags": [
           "Scans"
         ],
-        "summary": "Upload Scan",
-        "description": "Persist a single source file, ZIP workspace, or image SBOM before queueing.",
-        "operationId": "upload_scan_scans_upload_post",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_upload_scan_scans_upload_post"
+        "summary": "Delete Scan",
+        "description": "Remove a finished scan and its saved results. Input files are retained.",
+        "operationId": "delete_scan_scans__scan_id__delete",
+        "parameters": [
+          {
+            "name": "scan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
-          "required": true
-        },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Scans"
+        ],
+        "summary": "Get Scan",
+        "description": "Polls the status of an ongoing or completed scan.",
+        "operationId": "get_scan_scans__scan_id__get",
+        "parameters": [
+          {
+            "name": "scan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scan Id"
+            }
+          }
+        ],
         "responses": {
-          "202": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -149,27 +207,26 @@
         }
       }
     },
-    "/scans/{scan_id}": {
-      "get": {
+    "/scans/upload": {
+      "post": {
         "tags": [
           "Scans"
         ],
-        "summary": "Get Scan",
-        "description": "Polls the status of an ongoing or completed scan.",
-        "operationId": "get_scan_scans__scan_id__get",
-        "parameters": [
-          {
-            "name": "scan_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Scan Id"
+        "summary": "Upload Scan",
+        "description": "Persist a single source file, ZIP workspace, or image SBOM before queueing.",
+        "operationId": "upload_scan_scans_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_scan_scans_upload_post"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {

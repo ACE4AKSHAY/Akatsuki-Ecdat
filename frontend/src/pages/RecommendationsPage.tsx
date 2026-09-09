@@ -25,7 +25,7 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({
       return scoreB - scoreA;
     });
 
-  const handleExport = async (format: 'pdf' | 'csv' | 'cbom') => {
+  const handleExport = async (format: 'pdf' | 'csv' | 'xlsx' | 'cbom') => {
     let url: string;
     if (format === 'cbom') {
       url = downloadCBOMUrl(scanId);
@@ -47,6 +47,9 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({
         </Button>
         <Button variant="secondary" onClick={() => handleExport('csv')}>
           Export CSV
+        </Button>
+        <Button variant="secondary" onClick={() => handleExport('xlsx')}>
+          Export XLSX
         </Button>
         <Button variant="secondary" onClick={() => handleExport('cbom')}>
           Export CBOM JSON

@@ -88,11 +88,13 @@ export async function fetchScans(): Promise<ScanResponse[]> {
   return scans;
 }
 export const fetchScan = (id: string) => request<ScanResponse>(`/scans/${encodeURIComponent(id)}`);
+export const deleteScan = (id: string) => request<{ deletedCount: number }>(`/scans/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const deleteAllScans = () => request<{ deletedCount: number }>('/scans', { method: 'DELETE' });
 export const startScan = (target: string, sourceType: 'path' | 'git' | 'image' = 'path') => request<ScanResponse>('/scans', {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ target: target.trim(), sourceType }),
 });
-export const downloadReportUrl = (id: string, format: 'pdf' | 'csv' | 'json') =>
+export const downloadReportUrl = (id: string, format: 'pdf' | 'csv' | 'xlsx' | 'json') =>
   `${API_BASE}/reports/${encodeURIComponent(id)}?format=${format}`;
 export const downloadCBOMUrl = (id: string) => `${API_BASE}/cbom/${encodeURIComponent(id)}`;
 
