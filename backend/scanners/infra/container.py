@@ -16,6 +16,7 @@ from typing import Iterable
 from backend.scanners._finding import RawFinding
 from backend.scanners.binary_deps.registry import lookup
 from backend.scanners.binary_deps.manifests import _strip_expected_header
+from backend.input_limits import MIB, get_input_limits
 
 FROM_RE = re.compile(r"^\s*FROM\s+([^\s]+)", re.IGNORECASE)
 RUN_APT_RE = re.compile(r"^\s*RUN\s+.*?apt-get\s+install[^\n]*", re.IGNORECASE)
@@ -95,10 +96,12 @@ def scan_dockerfile(path: str | Path, scan_target_id: str) -> list[RawFinding]:
 
 def validate_image_input(target: str) -> str:
     import shutil
+    limits = get_input_limits()
     root = Path(target).expanduser()
     if root.is_file():
-        if root.suffix.lower() != '.json' or root.stat().st_size > 20 * 1024 * 1024:
-            raise ValueError('Offline image input must be a CycloneDX or Trivy JSON inventory under 20 MB.')
+        if root.suffix.lower() != '.json' or root.stat().st_size > limits.inventory_mib * MIB:
+            raise ValueError(f'Offline image input must be a CycloneDX or Trivy JSON inventory of at most {limits.inventory_mib:,} MiB. '
+                             'Adjust ECDAT_MAX_INVENTORY_MIB on the server if needed.')
         return str(root.resolve())
     if not re.fullmatch(r'[a-z0-9][a-z0-9._/:@-]{0,250}', target):
         raise ValueError('Enter a container image reference or a local image inventory JSON file.')
@@ -138,6 +141,7 @@ def scan_container_image(image_ref: str, scan_target_id: str = 'image') -> list[
     import json
     import subprocess
     import tempfile
+    limits = get_input_limits()
     target = validate_image_input(image_ref)
     if Path(target).is_file():
         return findings_from_image_inventory(json.loads(Path(target).read_text()), scan_target_id)
@@ -145,11 +149,13 @@ def scan_container_image(image_ref: str, scan_target_id: str = 'image') -> list[
         output = Path(tmp) / 'inventory.json'
         try:
             result = subprocess.run(['trivy', 'image', '--format', 'cyclonedx', '--output', str(output),
-                '--timeout', '3m', '--', target], capture_output=True, timeout=190)
+                '--timeout', f'{limits.image_timeout_seconds}s', '--', target], capture_output=True, timeout=limits.image_timeout_seconds + 10)
         except subprocess.TimeoutExpired as exc:
-            raise ValueError('Image inventory exceeded the 190 second limit.') from exc
+            raise ValueError(f'Image inventory exceeded its {limits.image_timeout_seconds} second timeout plus 10 seconds of process cleanup. '
+                             'Adjust ECDAT_IMAGE_TIMEOUT_SECONDS on the server if needed.') from exc
         if result.returncode:
             raise ValueError('Trivy could not inventory the image. Check image availability, registry access and Trivy setup.')
-        if output.stat().st_size > 20 * 1024 * 1024:
-            raise ValueError('Image inventory exceeds the 20 MB limit.')
+        if output.stat().st_size > limits.inventory_mib * MIB:
+            raise ValueError(f'Image inventory exceeds the {limits.inventory_mib:,} MiB limit. '
+                             'Adjust ECDAT_MAX_INVENTORY_MIB on the server if needed.')
         return findings_from_image_inventory(json.loads(output.read_text()), scan_target_id)

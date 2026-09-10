@@ -8,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
+import httpx
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, ProxyHandler
 
@@ -95,6 +97,26 @@ def main():
                 assert json.loads(request(lan + '/api/scans/' + scan_id, token, method='DELETE')[1])['deletedCount'] == 1
                 assert json.loads(request(lan + '/api/scans', token)[1]) == []
                 print('PASS: LAN page, API proxy, token enforcement, 10-asset scan, four reports and deletion')
+                archive = root / 'large-upload.zip'
+                with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_STORED) as bundle:
+                    bundle.writestr('app.py', 'import hashlib\nhashlib.md5(b"LAN capacity fixture")\n')
+                    with bundle.open('padding.dat', 'w') as padding:
+                        for _ in range(21):
+                            padding.write(b' ' * (1024 * 1024))
+                with httpx.Client(trust_env=False, timeout=60) as client, archive.open('rb') as data:
+                    response = client.post(lan + '/api/scans/upload',
+                        headers={'Authorization': f'Bearer {token}'}, files={'file': ('large-upload.zip', data, 'application/zip')})
+                assert response.status_code == 202, response.text
+                upload_id = response.json()['scanId']
+                deadline = time.monotonic() + 60
+                while time.monotonic() < deadline:
+                    scan = json.loads(request(lan + '/api/scans/' + upload_id, token)[1])
+                    if scan['status'] in ('completed', 'failed'):
+                        break
+                    time.sleep(.25)
+                assert scan['status'] == 'completed' and scan['assetCount'] >= 1, scan
+                assert json.loads(request(lan + '/api/scans/' + upload_id, token, method='DELETE')[1])['deletedCount'] == 1
+                print('PASS: 21 MiB ZIP upload through LAN proxy completed with real findings')
             finally:
                 if process.poll() is None:
                     process.send_signal(signal.CTRL_BREAK_EVENT if os.name == 'nt' else signal.SIGINT)

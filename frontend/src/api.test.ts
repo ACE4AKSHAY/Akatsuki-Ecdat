@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchLiveAssets, fetchScans, startScan, computeAssetTier, computeAllAssetsWithZ, mapBackendAssetToFrontend, downloadReportUrl, setAccessToken, uploadScan } from './api';
-afterEach(() => { setAccessToken(''); vi.unstubAllGlobals(); });
+afterEach(() => { setAccessToken(''); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); });
 describe('backend integration', () => {
   it('keeps empty results empty', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ok:true,json:async () => ({items:[],pages:1})}));
@@ -39,6 +39,21 @@ describe('risk parity', () => {
 });
 
 describe('new input and access modes', () => {
+  it('allows a slow upload to finish beyond the normal API deadline', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation(ms => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), ms);
+      return controller.signal;
+    });
+    vi.stubGlobal('fetch', vi.fn((_url, options) => new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => reject(new Error('timeout')));
+      setTimeout(() => resolve({ ok: true, json: async () => ({ scanId: 'large-upload' }) }), 30000);
+    })));
+    const result = uploadScan(new File(['fixture'], 'workspace.zip')).catch(error => error);
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(await result).toEqual({ scanId: 'large-upload' });
+  });
   it('sends the selected Git source type', async () => {
     const fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>({scanId:'git'})}); vi.stubGlobal('fetch',fetch);
     await startScan('https://github.com/example/project','git');

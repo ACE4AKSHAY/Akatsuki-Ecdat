@@ -49,12 +49,16 @@ let accessToken = '';
 export function setAccessToken(value: string) { accessToken = value; }
 function authorizationHeaders(): Record<string, string> { return accessToken ? { Authorization: `Bearer ${accessToken}` } : {}; }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, timeoutMs = 15000): Promise<T> {
   const headers = new Headers(init?.headers);
   Object.entries(authorizationHeaders()).forEach(([name, value]) => headers.set(name, value));
   let res: Response;
-  try { res = await fetch(`${API_BASE}${path}`, { ...init, headers, signal: AbortSignal.timeout(15000) }); }
-  catch { throw new Error('Cannot reach the backend. Check that the API is running and try again.'); }
+  try { res = await fetch(`${API_BASE}${path}`, { ...init, headers, signal: AbortSignal.timeout(timeoutMs) }); }
+  catch {
+    throw new Error(path === '/scans/upload'
+      ? 'Upload could not finish. Check your connection and scan history before retrying, or scan a local path on the host for very large repositories.'
+      : 'Cannot reach the backend. Check that the API is running and try again.');
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const detail = body?.detail;
@@ -100,7 +104,7 @@ export const downloadCBOMUrl = (id: string) => `${API_BASE}/cbom/${encodeURIComp
 
 export function uploadScan(file: File, sourceType: 'upload' | 'image' = 'upload') {
   const data = new FormData(); data.append('file', file); data.append('sourceType', sourceType);
-  return request<ScanResponse>('/scans/upload', { method: 'POST', body: data });
+  return request<ScanResponse>('/scans/upload', { method: 'POST', body: data }, 30 * 60 * 1000);
 }
 export async function downloadExport(url: string) {
   const response = await fetch(url, { headers: authorizationHeaders(), signal: AbortSignal.timeout(60000) });

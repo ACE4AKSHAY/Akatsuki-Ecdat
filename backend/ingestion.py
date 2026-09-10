@@ -9,10 +9,7 @@ import subprocess
 import tempfile
 import zipfile
 from urllib.parse import urlsplit
-
-MAX_UPLOAD = 20 * 1024 * 1024
-MAX_EXPANDED = 100 * 1024 * 1024
-MAX_FILES = 10000
+from backend.input_limits import MIB, get_input_limits
 
 
 def state_dir():
@@ -49,10 +46,12 @@ def validate_input(source_type, target):
 
 def extract_zip(archive, destination):
     """Extract regular files only, with member/count/expanded-size limits."""
+    limits = get_input_limits()
     with zipfile.ZipFile(archive) as bundle:
         members = bundle.infolist()
-        if len(members) > MAX_FILES or sum(m.file_size for m in members) > MAX_EXPANDED:
-            raise ValueError('ZIP exceeds 100 MB expanded size or 10000 entries.')
+        if len(members) > limits.files or sum(m.file_size for m in members) > limits.workspace_mib * MIB:
+            raise ValueError(f'ZIP exceeds {limits.workspace_mib:,} MiB expanded size or {limits.files:,} entries. '
+                             'Adjust ECDAT_MAX_WORKSPACE_MIB / ECDAT_MAX_FILES on the server if needed.')
         for member in members:
             name = PurePosixPath(member.filename)
             mode = member.external_attr >> 16
@@ -69,6 +68,7 @@ def extract_zip(archive, destination):
 
 @contextmanager
 def prepared_target(source_type, target):
+    limits = get_input_limits()
     if source_type == 'git':
         with tempfile.TemporaryDirectory(prefix='git-', dir=state_dir()) as tmp:
             destination = Path(tmp) / 'repository'
@@ -76,9 +76,10 @@ def prepared_target(source_type, target):
             try:
                 result = subprocess.run(['git', '-c', f'core.hooksPath={os.devnull}', '-c', 'http.followRedirects=false',
                     '-c', 'protocol.file.allow=never', 'clone', '--depth', '1', '--single-branch', '--no-tags',
-                    '--', validate_git_url(target), str(destination)], env=env, capture_output=True, timeout=120)
+                    '--', validate_git_url(target), str(destination)], env=env, capture_output=True, timeout=limits.git_timeout_seconds)
             except subprocess.TimeoutExpired as exc:
-                raise ValueError('Git clone exceeded the 120 second limit.') from exc
+                raise ValueError(f'Git clone exceeded the {limits.git_timeout_seconds} second limit. '
+                                 'Adjust ECDAT_GIT_TIMEOUT_SECONDS on the server for a slower connection.') from exc
             if result.returncode:
                 raise ValueError('Git clone failed. Verify the public repository URL and network access.')
             snapshot = Path(tmp) / "snapshot"
@@ -97,11 +98,14 @@ def prepared_target(source_type, target):
                 snapshot_workspace(source, Path(tmp))
                 yield Path(tmp)
         else:
+            if source.stat().st_size > limits.workspace_mib * MIB:
+                raise ValueError(f'File exceeds {limits.workspace_mib:,} MiB. Adjust ECDAT_MAX_WORKSPACE_MIB on the server if needed.')
             yield source
 
 
 def snapshot_workspace(source, destination):
     """Copy bounded regular files; exclude tool output and linked filesystem content."""
+    limits = get_input_limits()
     excluded = {'.git', '.venv', '.venv-runtime', 'venv', 'node_modules', '__pycache__', '.ecdat', 'dist', 'work'}
     count = total = 0
     for root, dirs, files in os.walk(source, followlinks=False):
@@ -112,8 +116,9 @@ def snapshot_workspace(source, destination):
                 continue
             count += 1
             total += src.stat().st_size
-            if count > MAX_FILES or total > MAX_EXPANDED:
-                raise ValueError('Workspace exceeds 100 MB or 10000 files after dependency/output exclusions.')
+            if count > limits.files or total > limits.workspace_mib * MIB:
+                raise ValueError(f'Workspace exceeds {limits.workspace_mib:,} MiB or {limits.files:,} files after dependency/output exclusions. '
+                                 'Adjust ECDAT_MAX_WORKSPACE_MIB / ECDAT_MAX_FILES on the server if needed.')
             dst = destination / src.relative_to(source)
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, dst)

@@ -2,7 +2,8 @@
 Scan lifecycle API routes: POST /scans, GET /scans/{id}, GET /scans
 """
 import uuid
-from backend.ingestion import validate_input, state_dir, MAX_UPLOAD
+from backend.ingestion import validate_input, state_dir
+from backend.input_limits import MIB, get_input_limits
 from pathlib import Path
 import json
 import shutil
@@ -95,6 +96,8 @@ async def upload_scan(file: UploadFile = File(...), sourceType: str = Form("uplo
     """Persist a single source file, ZIP workspace, or image SBOM before queueing."""
     if sourceType not in ("upload", "image"):
         raise HTTPException(422, "Upload source must be upload or image.")
+    limits = get_input_limits()
+    upload_mib = min(limits.upload_mib, limits.inventory_mib) if sourceType == 'image' else limits.upload_mib
     name = Path(file.filename or "upload.txt").name
     folder = state_dir() / "uploads" / uuid.uuid4().hex
     folder.mkdir(parents=True)
@@ -104,8 +107,9 @@ async def upload_scan(file: UploadFile = File(...), sourceType: str = Form("uplo
         with destination.open("wb") as out:
             while chunk := await file.read(1024 * 1024):
                 size += len(chunk)
-                if size > MAX_UPLOAD:
-                    raise HTTPException(413, "Upload exceeds the 20 MB limit.")
+                if size > upload_mib * MIB:
+                    setting = 'ECDAT_MAX_UPLOAD_MIB / ECDAT_MAX_INVENTORY_MIB' if sourceType == 'image' else 'ECDAT_MAX_UPLOAD_MIB'
+                    raise HTTPException(413, f'Upload exceeds the {upload_mib:,} MiB limit. Adjust {setting} on the server if needed.')
                 out.write(chunk)
         if size == 0:
             raise HTTPException(422, "Upload is empty.")
