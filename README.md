@@ -51,7 +51,7 @@ On Windows the backend equivalent is `.venv\Scripts\python.exe -m uvicorn backen
 ## Current capability
 
 - Scan a bounded snapshot of a local file/directory or a public HTTPS Git repository.
-- Upload one source file or a ZIP workspace up to 20 MB.
+- Upload one source file or a ZIP workspace up to 512 MiB (configurable).
 - Read a CycloneDX or Trivy JSON package inventory; live image input additionally requires Trivy.
 - Run source, dependency/binary, infrastructure and certificate discovery through one pipeline.
 - Search and filter inventory, inspect asset evidence and review migration recommendations.
@@ -87,6 +87,14 @@ History deletion removes saved scans, findings, recommendations, queued-job opti
 | `ECDAT_CORS_ORIGINS` | Comma-separated allowed browser origins |
 | `ECDAT_GIT_HOSTS` | HTTPS Git host allowlist; GitHub, GitLab and Bitbucket by default |
 | `API_PROXY_TARGET` | Vite API target; defaults to `http://127.0.0.1:8000` |
+| `ECDAT_MAX_UPLOAD_MIB` | Upload file size; 512 MiB |
+| `ECDAT_MAX_WORKSPACE_MIB` | Local file, local/Git snapshot or expanded ZIP size; 2048 MiB (2 GiB) |
+| `ECDAT_MAX_FILES` | Local/Git snapshot files or ZIP entries; 100,000 |
+| `ECDAT_MAX_INVENTORY_MIB` | Offline/live image JSON inventory size; 128 MiB |
+| `ECDAT_GIT_TIMEOUT_SECONDS` | Git clone deadline; 600 seconds |
+| `ECDAT_IMAGE_TIMEOUT_SECONDS` | Trivy inventory deadline; 600 seconds plus 10 seconds for process cleanup |
+
+Size/count/time settings require positive integers. Set them before starting the backend and restart it after changes. `ecdat.bat check` prints the effective limits. See [large repository settings and Windows examples](documentation/SETUP_AND_RUN.md#scan-large-repositories).
 
 The launcher accepts `--api-port` and `--ui-port`, configures the proxy, checks readiness and writes logs to `.ecdat/logs`. Example: `ecdat.bat dev --api-port 8010 --ui-port 3010`. Default modes bind to loopback. `lan` shares the built dashboard on all IPv4 interfaces while the API remains behind its loopback proxy. Local preview is for reviewing a built bundle, not a production hosting system.
 
@@ -100,7 +108,7 @@ ecdat.bat test
 
 Or run `.venv/bin/python scripts/launcher.py test` on macOS/Linux. The individual checks are `.venv/bin/pytest -q`, `npm test` and `npm run build` (the npm commands run in `frontend`). Pytest uses a temporary database and worker state directory. An optional `ECDAT_TEST_DATABASE_URL` must point only to dedicated test data.
 
-The update passes **83 backend tests and 23 frontend tests**, plus a production build. Browser validation covers desktop/mobile heatmap behavior, history deletion and core scan/export flows. The launcher was exercised through a fresh local installation in a path containing spaces on macOS; the new [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
+The update passes **100 backend tests and 24 frontend tests**, plus a production build. Capacity tests complete a 101 MiB workspace with 10,002 files, a 101 MiB ZIP upload and a 21 MiB image inventory. They also check configurable limits, cleanup and timeout handling. The [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, a 21 MiB upload through the LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
 
 The [test and sample-data map](documentation/TEST_DATA.md) identifies automated tests, demonstration inputs and all four self-signed certificate fixtures. Certificate fixtures are scanner inputs; do not install them as trusted roots or use them for dashboard HTTPS.
 
@@ -113,7 +121,7 @@ The [test and sample-data map](documentation/TEST_DATA.md) identifies automated 
 
 ## Boundaries and remaining limitations
 
-Local/Git snapshots are limited to 100 MB and 10,000 files after dependency/output exclusions. Uploads are limited to 20 MB; ZIP expanded content is limited to 100 MB and 10,000 entries. Symbolic links are not followed. HTTPS Git inputs are allowlisted, shallow and noninteractive, with a 120-second clone limit.
+Default local/Git snapshots are limited to 2 GiB and 100,000 files after dependency/output exclusions. Single local files have the same size limit. Uploads allow 512 MiB; ZIP expanded content allows 2 GiB and 100,000 entries, including directory entries. ZIP entries are counted before scanner exclusions. Uploaded image JSON uses the smaller of the upload and 128 MiB inventory limits. Symbolic links are not followed. HTTPS Git inputs are allowlisted, shallow and noninteractive, with a 600-second clone limit. These limits are configurable; they are acceptance limits, not throughput guarantees. Scanning still uses one worker, and parsers/findings consume memory. Git download size is not bounded by the snapshot limit; keep room for the clone plus its snapshot. See the setup guide for disk, memory and slower-network considerations.
 
 Source AST scanning currently targets Python, Java, JavaScript and Go. Binary inspection uses strings and optional symbols, with a pure-Python strings fallback when native tools are absent. Rules and package registries are curated, and all findings and migration recommendations require human review.
 

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import os
 from backend.auth import AccessControlMiddleware
 from backend.engine.jobs import JobWorker
+from backend.input_limits import get_input_limits
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import init_db
@@ -17,6 +18,7 @@ from backend.api.config_routes import router as config_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    get_input_limits()  # Reject invalid environment settings before accepting scans.
     # Startup: Initialize database schema
     init_db()
     worker = JobWorker()

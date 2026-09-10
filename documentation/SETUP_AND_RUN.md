@@ -233,6 +233,49 @@ With the API already running, run the repeatable sample-and-export check:
 .venv\Scripts\python.exe scripts\demo_smoke.py --output work\demo-results
 ```
 
+## Scan large repositories
+
+The defaults now accept larger repositories without configuration. `ecdat.bat check` prints the effective server limits. MiB means 1,048,576 bytes; 2048 MiB is 2 GiB.
+
+| Environment variable | Default and scope |
+| --- | --- |
+| `ECDAT_MAX_UPLOAD_MIB` | 512 MiB per uploaded file or ZIP. |
+| `ECDAT_MAX_WORKSPACE_MIB` | 2048 MiB for a local file, local/Git snapshot or expanded ZIP. |
+| `ECDAT_MAX_FILES` | 100,000 regular files in a local/Git snapshot, or ZIP entries including directories. |
+| `ECDAT_MAX_INVENTORY_MIB` | 128 MiB for an offline or generated image JSON inventory. Image uploads also obey the upload cap. |
+| `ECDAT_GIT_TIMEOUT_SECONDS` | 600 seconds for cloning a public Git repository. |
+| `ECDAT_IMAGE_TIMEOUT_SECONDS` | 600 seconds for Trivy inventory, plus 10 seconds for process cleanup. |
+
+For a larger machine, this example allows a 1 GiB upload, a 4 GiB workspace, 200,000 files and a 15-minute Git clone. In Command Prompt, from the repository root:
+
+```bat
+set "ECDAT_MAX_UPLOAD_MIB=1024"
+set "ECDAT_MAX_WORKSPACE_MIB=4096"
+set "ECDAT_MAX_FILES=200000"
+set "ECDAT_GIT_TIMEOUT_SECONDS=900"
+ecdat.bat check
+ecdat.bat lan
+```
+
+In PowerShell, set values in the same terminal before launching:
+
+```powershell
+$env:ECDAT_MAX_UPLOAD_MIB = "1024"
+$env:ECDAT_MAX_WORKSPACE_MIB = "4096"
+$env:ECDAT_MAX_FILES = "200000"
+$env:ECDAT_GIT_TIMEOUT_SECONDS = "900"
+.\ecdat.bat check
+.\ecdat.bat lan
+```
+
+For macOS/Linux, use `export ECDAT_MAX_WORKSPACE_MIB=4096` and the other settings in the same way, then `.venv/bin/python scripts/launcher.py lan`. Use `dev` instead of `lan` for access only from the host. Manual backend startup inherits the same environment settings. Values must be positive whole numbers; zero does not mean unlimited. Restart the backend after changing values. These examples apply to the current terminal session; a later double-click uses its own environment. No administrator rights are required for these settings.
+
+For a repository already on the host, Local path avoids upload time. Local/Git snapshots exclude `.git`, virtual environments, `node_modules`, cache and output folders. ZIP limits count all entries before scanner exclusions; omit dependencies and build outputs when creating an archive. The browser allows 30 minutes to transfer an upload. If it times out, check scan history before retrying because the server may already have queued it. Scans run asynchronously after upload and are not limited to that browser transfer deadline.
+
+Keep disk space for the uploaded copy, multipart temporary file, expanded snapshot, database and reports. Git cloning also needs its own checkout and Git data; the 2 GiB default is checked on the later snapshot, not the download itself. Source parsers and image JSON parsing use memory, and one worker processes scans in sequence. Larger limits do not guarantee a particular scan duration or memory footprint. Split exceptionally large repositories by subdirectory if the host runs short of resources. An additional reverse proxy must permit the chosen body size and transfer time. Live image scanning still requires Trivy.
+
+Capacity validation covers a 101 MiB local workspace containing 10,002 files, a 101 MiB ZIP upload, a 21 MiB image inventory and a 21 MiB upload through the LAN proxy. These checks establish that the previous limits are removed; they are not a benchmark at the 2 GiB maximum.
+
 ## Test inputs and certificate files
 
 See [Test code and sample scan inputs](TEST_DATA.md) for the automated test folders, sample source/configuration/manifests, and the four PEM certificate fixtures. Install only the repository-root requirements for ECDAT; requirements files inside `demo` and `seed_corpus` are inputs for scanning. The PEM files are public self-signed test certificates and are not HTTPS server credentials or certificates to install in Windows.

@@ -105,6 +105,7 @@ def check_backend():
     if version_tuple(version) < MIN_PYTHON:
         raise LauncherError('The existing .venv uses an unsupported Python version. Run setup to replace it with a backup.')
     command([python, '-m', 'pip', 'check'])
+    command([python, '-c', 'from backend.input_limits import get_input_limits; print("[OK] Input limits: " + get_input_limits().summary())'])
     command([python, '-c', 'import fastapi, uvicorn, pydantic, sqlalchemy, httpx, multipart, reportlab, openpyxl, tree_sitter, tree_sitter_python, tree_sitter_java, tree_sitter_javascript, tree_sitter_go, cryptography, yaml, packaging, filelock; import backend.main; print("[OK] Backend dependencies and application imports")'])
 
 
