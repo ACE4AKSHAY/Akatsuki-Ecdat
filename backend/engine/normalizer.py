@@ -45,12 +45,40 @@ CANONICAL_ALGORITHM_MAP = {
     "DES": ("DES", "1.3.14.3.2.7", "symmetric", ["encrypt", "decrypt"], 56, 0),
     "3DES": ("3DES", "1.2.840.113549.3.7", "symmetric", ["encrypt", "decrypt"], 112, 0),
     "RC4": ("RC4", "1.2.840.113549.3.4", "symmetric", ["encrypt", "decrypt"], 40, 0),
+    "CHACHA20-POLY1305": ("ChaCha20-Poly1305", "1.2.840.113549.1.9.16.3.18", "symmetric", ["encrypt", "decrypt"], 128, 1),
+    "HMAC-SHA256": ("HMAC-SHA256", "1.2.840.113549.2.9", "mac", ["authenticate"], 128, 1),
+    "BCRYPT": ("bcrypt", None, "kdf", ["key-derivation"], 112, 0),
+    "ARGON2ID": ("Argon2id", None, "kdf", ["key-derivation"], 128, 0),
+    "SCRYPT": ("scrypt", None, "kdf", ["key-derivation"], 128, 0),
+    "PBKDF2": ("PBKDF2", "1.2.840.113549.1.5.12", "kdf", ["key-derivation"], 112, 0),
+    "TLSV1": ("TLSv1", None, "protocol", ["transport"], 0, 0),
+    "TLSV1.1": ("TLSv1.1", None, "protocol", ["transport"], 0, 0),
+    "TLSV1.2": ("TLSv1.2", None, "protocol", ["transport"], 112, 0),
+    "TLSV1.3": ("TLSv1.3", None, "protocol", ["transport"], 128, 0),
+    "AES": ("AES", None, "symmetric", ["encrypt", "decrypt"], 128, 1),
+    "CHACHA20": ("ChaCha20", None, "symmetric", ["encrypt", "decrypt"], 128, 1),
+}
+
+# Base name -> canonical name per detected key size. A generic "RSA" hit and a
+# parameterised "RSA-2048" hit on the same line describe one artefact, so the
+# size is promoted onto the base name to keep a single asset in the CBOM.
+_KEY_SIZE_VARIANTS = {
+    "RSA": {2048: "RSA-2048", 4096: "RSA-4096", 3072: "RSA-3072"},
+    "AES": {128: "AES-128", 192: "AES-192", 256: "AES-256"},
+    "3DES": {168: "3DES"},
+    "CHACHA20-POLY1305": {256: "ChaCha20-Poly1305"},
 }
 
 
-def canonicalize_primitive(raw_name: str) -> tuple[str, Optional[str], str, list[str], int, int]:
+def canonicalize_primitive(
+    raw_name: str, key_size: Optional[int] = None
+) -> tuple[str, Optional[str], str, list[str], int, int]:
     """Returns (canonical_name, oid, category, crypto_functions, classical_sec, nist_sec)."""
     norm = raw_name.upper().replace("_", "-").strip()
+    if key_size:
+        promoted = _KEY_SIZE_VARIANTS.get(norm, {}).get(key_size)
+        if promoted:
+            norm = promoted.upper().replace("_", "-")
     if norm in CANONICAL_ALGORITHM_MAP:
         return CANONICAL_ALGORITHM_MAP[norm]
     # Fallback heuristic
@@ -119,7 +147,9 @@ def normalize_findings(
     grouped_assets: Dict[str, Dict[str, Any]] = {}
 
     for f in findings:
-        can_name, oid, prim_cat, funcs, class_sec, nist_sec = canonicalize_primitive(f.detectedPrimitive)
+        can_name, oid, prim_cat, funcs, class_sec, nist_sec = canonicalize_primitive(
+            f.detectedPrimitive, f.keySizeBits
+        )
         
         # Grouping key: by canonical algorithm and file path
         group_key = f"{can_name}::{f.filePath}"

@@ -1,77 +1,129 @@
 {
-  "registryVersion": "2026.11.1",
+  "registryVersion": "2026.11.2",
   "reviewedOn": "2026-11-19",
   "description": "Versioned cryptographic standards and migration policy registry. Every recommendation points at an entry here so policy is reviewable without changing application logic.",
   "entries": [
     {
       "id": "md5",
       "displayName": "MD5",
-      "aliases": ["MD5", "MD-5"],
+      "aliases": [
+        "MD5",
+        "MD-5"
+      ],
       "family": "hash",
       "standard": "Obsolete (RFC 6151)",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["integrity", "password-storage"],
+      "useCases": [
+        "integrity",
+        "password-storage"
+      ],
       "securityProfile": "broken",
       "classicalStatus": "broken",
       "quantumStatus": "weakened",
       "defaultAction": "deprecate",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["collision attacks are practical"],
-      "notPrimaryFor": ["signatures", "integrity", "password-storage"],
-      "references": ["RFC 6151", "NIST SP 800-131A Rev 2"],
+      "constraints": [
+        "collision attacks are practical"
+      ],
+      "notPrimaryFor": [
+        "signatures",
+        "integrity",
+        "password-storage"
+      ],
+      "references": [
+        "RFC 6151",
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": "For password storage use a password KDF, never a general-purpose digest."
     },
     {
       "id": "sha-1",
       "displayName": "SHA-1",
-      "aliases": ["SHA1", "SHA-1", "SHA_1"],
+      "aliases": [
+        "SHA1",
+        "SHA-1",
+        "SHA_1"
+      ],
       "family": "hash",
       "standard": "Deprecated (FIPS 180-4, SP 800-131A)",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["integrity", "signatures"],
+      "useCases": [
+        "integrity",
+        "signatures"
+      ],
       "securityProfile": "broken",
       "classicalStatus": "broken",
       "quantumStatus": "weakened",
       "defaultAction": "deprecate",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["collision attacks are practical"],
-      "notPrimaryFor": ["signatures", "certificates", "integrity"],
-      "references": ["FIPS 180-4", "NIST SP 800-131A Rev 2"],
+      "constraints": [
+        "collision attacks are practical"
+      ],
+      "notPrimaryFor": [
+        "signatures",
+        "certificates",
+        "integrity"
+      ],
+      "references": [
+        "FIPS 180-4",
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": "Retained only for legacy verification where compatibility requires it."
     },
     {
       "id": "sha-256",
       "displayName": "SHA-256",
-      "aliases": ["SHA256", "SHA-256", "SHA_256"],
+      "aliases": [
+        "SHA256",
+        "SHA-256",
+        "SHA_256"
+      ],
       "family": "hash",
       "standard": "FIPS 180-4",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["integrity", "signatures", "kdf"],
+      "useCases": [
+        "integrity",
+        "signatures",
+        "kdf"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "weakened",
       "defaultAction": "monitor",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["Grover halves the effective preimage margin"],
-      "notPrimaryFor": ["password-storage"],
-      "references": ["FIPS 180-4"],
+      "constraints": [
+        "Grover halves the effective preimage margin"
+      ],
+      "notPrimaryFor": [
+        "password-storage"
+      ],
+      "references": [
+        "FIPS 180-4"
+      ],
       "notes": "Acceptable for integrity; use a memory-hard KDF for passwords."
     },
     {
       "id": "sha-384",
       "displayName": "SHA-384",
-      "aliases": ["SHA384", "SHA-384", "SHA_384"],
+      "aliases": [
+        "SHA384",
+        "SHA-384",
+        "SHA_384"
+      ],
       "family": "hash",
       "standard": "FIPS 180-4",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["integrity", "signatures"],
+      "useCases": [
+        "integrity",
+        "signatures"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
@@ -79,19 +131,30 @@
       "latencyImpact": "negligible",
       "costImpact": "low",
       "constraints": [],
-      "notPrimaryFor": ["password-storage"],
-      "references": ["FIPS 180-4"],
+      "notPrimaryFor": [
+        "password-storage"
+      ],
+      "references": [
+        "FIPS 180-4"
+      ],
       "notes": "Preferred successor for collision-sensitive uses of SHA-1."
     },
     {
       "id": "sha-512",
       "displayName": "SHA-512",
-      "aliases": ["SHA512", "SHA-512", "SHA_512"],
+      "aliases": [
+        "SHA512",
+        "SHA-512",
+        "SHA_512"
+      ],
       "family": "hash",
       "standard": "FIPS 180-4",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["integrity", "signatures"],
+      "useCases": [
+        "integrity",
+        "signatures"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
@@ -99,39 +162,62 @@
       "latencyImpact": "negligible",
       "costImpact": "low",
       "constraints": [],
-      "notPrimaryFor": ["password-storage"],
-      "references": ["FIPS 180-4"],
+      "notPrimaryFor": [
+        "password-storage"
+      ],
+      "references": [
+        "FIPS 180-4"
+      ],
       "notes": ""
     },
     {
       "id": "sha3-256",
       "displayName": "SHA3-256",
-      "aliases": ["SHA3-256", "SHA3_256", "SHA3"],
+      "aliases": [
+        "SHA3-256",
+        "SHA3_256",
+        "SHA3"
+      ],
       "family": "hash",
       "standard": "FIPS 202",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["integrity", "signatures"],
+      "useCases": [
+        "integrity",
+        "signatures"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "weakened",
       "defaultAction": "monitor",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["Grover halves the effective preimage margin"],
-      "notPrimaryFor": ["password-storage"],
-      "references": ["FIPS 202"],
+      "constraints": [
+        "Grover halves the effective preimage margin"
+      ],
+      "notPrimaryFor": [
+        "password-storage"
+      ],
+      "references": [
+        "FIPS 202"
+      ],
       "notes": ""
     },
     {
       "id": "sha3-384",
       "displayName": "SHA3-384",
-      "aliases": ["SHA3-384", "SHA3_384"],
+      "aliases": [
+        "SHA3-384",
+        "SHA3_384"
+      ],
       "family": "hash",
       "standard": "FIPS 202",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["integrity", "signatures"],
+      "useCases": [
+        "integrity",
+        "signatures"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
@@ -139,528 +225,872 @@
       "latencyImpact": "negligible",
       "costImpact": "low",
       "constraints": [],
-      "notPrimaryFor": ["password-storage"],
-      "references": ["FIPS 202"],
+      "notPrimaryFor": [
+        "password-storage"
+      ],
+      "references": [
+        "FIPS 202"
+      ],
       "notes": ""
     },
     {
       "id": "argon2id",
       "displayName": "Argon2id",
-      "aliases": ["ARGON2", "ARGON2ID"],
+      "aliases": [
+        "ARGON2",
+        "ARGON2ID"
+      ],
       "family": "kdf",
       "standard": "RFC 9106",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["password-storage"],
+      "useCases": [
+        "password-storage"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "replace",
       "latencyImpact": "configurable; memory-hard by design",
       "costImpact": "low; tune memory and iterations",
-      "constraints": ["requires current library support", "store parameters with the hash"],
-      "notPrimaryFor": ["integrity", "signatures"],
-      "references": ["RFC 9106", "OWASP Password Storage Cheat Sheet"],
+      "constraints": [
+        "requires current library support",
+        "store parameters with the hash"
+      ],
+      "notPrimaryFor": [
+        "integrity",
+        "signatures"
+      ],
+      "references": [
+        "RFC 9106",
+        "OWASP Password Storage Cheat Sheet"
+      ],
       "notes": "Preferred password hashing choice for new deployments."
     },
     {
       "id": "bcrypt",
       "displayName": "bcrypt",
-      "aliases": ["BCRYPT"],
+      "aliases": [
+        "BCRYPT"
+      ],
       "family": "kdf",
       "standard": "OpenBSD / OWASP guidance",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["password-storage"],
+      "useCases": [
+        "password-storage"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "replace",
       "latencyImpact": "configurable cost factor",
       "costImpact": "low",
-      "constraints": ["72-byte password input limit"],
-      "notPrimaryFor": ["integrity"],
-      "references": ["OWASP Password Storage Cheat Sheet"],
+      "constraints": [
+        "72-byte password input limit"
+      ],
+      "notPrimaryFor": [
+        "integrity"
+      ],
+      "references": [
+        "OWASP Password Storage Cheat Sheet"
+      ],
       "notes": "Acceptable where Argon2id is unavailable."
     },
     {
       "id": "scrypt",
       "displayName": "scrypt",
-      "aliases": ["SCRYPT"],
+      "aliases": [
+        "SCRYPT"
+      ],
       "family": "kdf",
       "standard": "RFC 7914",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["password-storage"],
+      "useCases": [
+        "password-storage"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "replace",
       "latencyImpact": "configurable; memory-hard by design",
       "costImpact": "low; tune memory and work factor",
-      "constraints": ["store parameters with the hash"],
-      "notPrimaryFor": ["integrity"],
-      "references": ["RFC 7914"],
+      "constraints": [
+        "store parameters with the hash"
+      ],
+      "notPrimaryFor": [
+        "integrity"
+      ],
+      "references": [
+        "RFC 7914"
+      ],
       "notes": "Acceptable where Argon2id is unavailable."
     },
     {
       "id": "des",
       "displayName": "DES",
-      "aliases": ["DES", "DES-CBC", "DES-ECB"],
+      "aliases": [
+        "DES",
+        "DES-CBC",
+        "DES-ECB"
+      ],
       "family": "symmetric",
       "standard": "Obsolete (SP 800-131A)",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["encryption"],
+      "useCases": [
+        "encryption"
+      ],
       "securityProfile": "broken",
       "classicalStatus": "broken",
       "quantumStatus": "weakened",
       "defaultAction": "deprecate",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["56-bit key is exhaustively searchable"],
-      "notPrimaryFor": ["encryption", "integrity"],
-      "references": ["NIST SP 800-131A Rev 2"],
+      "constraints": [
+        "56-bit key is exhaustively searchable"
+      ],
+      "notPrimaryFor": [
+        "encryption",
+        "integrity"
+      ],
+      "references": [
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": ""
     },
     {
       "id": "3des",
       "displayName": "3DES",
-      "aliases": ["3DES", "TRIPLEDES", "DES3", "TDES", "DES-CBC3"],
+      "aliases": [
+        "3DES",
+        "TRIPLEDES",
+        "DES3",
+        "TDES",
+        "DES-CBC3"
+      ],
       "family": "symmetric",
       "standard": "Deprecated (SP 800-131A)",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["encryption"],
+      "useCases": [
+        "encryption"
+      ],
       "securityProfile": "deprecated",
       "classicalStatus": "deprecated",
       "quantumStatus": "weakened",
       "defaultAction": "deprecate",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["64-bit block size enables birthday-bound attacks on large data volumes"],
-      "notPrimaryFor": ["encryption", "integrity"],
-      "references": ["NIST SP 800-131A Rev 2"],
+      "constraints": [
+        "64-bit block size enables birthday-bound attacks on large data volumes"
+      ],
+      "notPrimaryFor": [
+        "encryption",
+        "integrity"
+      ],
+      "references": [
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": ""
     },
     {
       "id": "rc4",
       "displayName": "RC4",
-      "aliases": ["RC4", "ARCFOUR"],
+      "aliases": [
+        "RC4",
+        "ARCFOUR"
+      ],
       "family": "symmetric",
       "standard": "Prohibited (RFC 7465, SP 800-131A)",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["encryption"],
+      "useCases": [
+        "encryption"
+      ],
       "securityProfile": "broken",
       "classicalStatus": "broken",
       "quantumStatus": "weakened",
       "defaultAction": "replace",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["keystream biases permit plaintext recovery"],
-      "notPrimaryFor": ["encryption", "integrity"],
-      "references": ["RFC 7465", "NIST SP 800-131A Rev 2"],
+      "constraints": [
+        "keystream biases permit plaintext recovery"
+      ],
+      "notPrimaryFor": [
+        "encryption",
+        "integrity"
+      ],
+      "references": [
+        "RFC 7465",
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": ""
     },
     {
       "id": "blowfish",
       "displayName": "Blowfish",
-      "aliases": ["BLOWFISH"],
+      "aliases": [
+        "BLOWFISH"
+      ],
       "family": "symmetric",
       "standard": "Legacy",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["encryption"],
+      "useCases": [
+        "encryption"
+      ],
       "securityProfile": "deprecated",
       "classicalStatus": "deprecated",
       "quantumStatus": "weakened",
       "defaultAction": "deprecate",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["64-bit block size"],
-      "notPrimaryFor": ["encryption"],
-      "references": ["NIST SP 800-131A Rev 2"],
+      "constraints": [
+        "64-bit block size"
+      ],
+      "notPrimaryFor": [
+        "encryption"
+      ],
+      "references": [
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": ""
     },
     {
       "id": "aes-128",
       "displayName": "AES-128",
-      "aliases": ["AES-128", "AES128", "AES"],
+      "aliases": [
+        "AES-128",
+        "AES128",
+        "AES"
+      ],
       "family": "symmetric",
       "standard": "FIPS 197",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["encryption"],
+      "useCases": [
+        "encryption"
+      ],
       "securityProfile": "acceptable",
       "classicalStatus": "acceptable",
       "quantumStatus": "weakened",
       "defaultAction": "replace",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["use an AEAD mode such as GCM", "avoid ECB"],
-      "notPrimaryFor": ["long-lived confidentiality"],
-      "references": ["FIPS 197", "NIST SP 800-131A Rev 2"],
+      "constraints": [
+        "use an AEAD mode such as GCM",
+        "avoid ECB"
+      ],
+      "notPrimaryFor": [
+        "long-lived confidentiality"
+      ],
+      "references": [
+        "FIPS 197",
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": "Plan AES-256 for long-lived sensitive data because Grover reduces the margin."
     },
     {
       "id": "aes-256",
       "displayName": "AES-256",
-      "aliases": ["AES-256", "AES256"],
+      "aliases": [
+        "AES-256",
+        "AES256"
+      ],
       "family": "symmetric",
       "standard": "FIPS 197",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["encryption"],
+      "useCases": [
+        "encryption"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "retain",
       "latencyImpact": "negligible",
       "costImpact": "low",
-      "constraints": ["use an AEAD mode such as GCM", "avoid ECB"],
+      "constraints": [
+        "use an AEAD mode such as GCM",
+        "avoid ECB"
+      ],
       "notPrimaryFor": [],
-      "references": ["FIPS 197", "NIST SP 800-131A Rev 2"],
+      "references": [
+        "FIPS 197",
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": ""
     },
     {
       "id": "aes-256-gcm",
       "displayName": "AES-256-GCM",
-      "aliases": ["AES-256-GCM", "AES256GCM", "AES-GCM"],
+      "aliases": [
+        "AES-256-GCM",
+        "AES256GCM",
+        "AES-GCM"
+      ],
       "family": "symmetric",
       "standard": "FIPS 197 / NIST SP 800-38D",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["encryption"],
+      "useCases": [
+        "encryption"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "retain",
       "latencyImpact": "negligible; hardware accelerated",
       "costImpact": "low",
-      "constraints": ["never reuse a nonce with the same key"],
+      "constraints": [
+        "never reuse a nonce with the same key"
+      ],
       "notPrimaryFor": [],
-      "references": ["NIST SP 800-38D"],
+      "references": [
+        "NIST SP 800-38D"
+      ],
       "notes": "Preferred AEAD target for most symmetric migrations."
     },
     {
       "id": "chacha20-poly1305",
       "displayName": "ChaCha20-Poly1305",
-      "aliases": ["CHACHA20", "CHACHA20-POLY1305"],
+      "aliases": [
+        "CHACHA20",
+        "CHACHA20-POLY1305"
+      ],
       "family": "symmetric",
       "standard": "RFC 8439",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["encryption"],
+      "useCases": [
+        "encryption"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "retain",
       "latencyImpact": "negligible; efficient without AES hardware",
       "costImpact": "low",
-      "constraints": ["never reuse a nonce with the same key"],
+      "constraints": [
+        "never reuse a nonce with the same key"
+      ],
       "notPrimaryFor": [],
-      "references": ["RFC 8439"],
+      "references": [
+        "RFC 8439"
+      ],
       "notes": "Preferred AEAD where AES acceleration is unavailable."
     },
     {
       "id": "rsa",
       "displayName": "RSA",
-      "aliases": ["RSA", "RSA-2048", "RSA-3072", "RSA-4096", "RSA-1024", "RSA-ENCRYPTION", "RSA-KEY-TRANSPORT", "RSA-KEX"],
+      "aliases": [
+        "RSA",
+        "RSA-2048",
+        "RSA-3072",
+        "RSA-4096",
+        "RSA-1024",
+        "RSA-ENCRYPTION",
+        "RSA-KEY-TRANSPORT",
+        "RSA-KEX"
+      ],
       "family": "asymmetric",
       "standard": "FIPS 186-5",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["key-establishment", "signatures"],
+      "useCases": [
+        "key-establishment",
+        "signatures"
+      ],
       "securityProfile": "acceptable",
       "classicalStatus": "acceptable",
       "quantumStatus": "vulnerable",
       "defaultAction": "hybridize",
       "latencyImpact": "moderate; larger keys and handshake messages",
       "costImpact": "medium; protocol, library and certificate changes",
-      "constraints": ["vulnerable to Shor's algorithm", "requires protocol and library support for replacement"],
-      "notPrimaryFor": ["long-lived confidentiality", "new key establishment"],
-      "references": ["FIPS 186-5", "NIST SP 800-131A Rev 2"],
+      "constraints": [
+        "vulnerable to Shor's algorithm",
+        "requires protocol and library support for replacement"
+      ],
+      "notPrimaryFor": [
+        "long-lived confidentiality",
+        "new key establishment"
+      ],
+      "references": [
+        "FIPS 186-5",
+        "NIST SP 800-131A Rev 2"
+      ],
       "notes": "Role determines the migration path: key establishment should hybridize; signatures should move to ML-DSA or SLH-DSA."
     },
     {
       "id": "dsa",
       "displayName": "DSA",
-      "aliases": ["DSA"],
+      "aliases": [
+        "DSA"
+      ],
       "family": "asymmetric",
       "standard": "Deprecated (FIPS 186-5)",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["signatures"],
+      "useCases": [
+        "signatures"
+      ],
       "securityProfile": "deprecated",
       "classicalStatus": "deprecated",
       "quantumStatus": "vulnerable",
       "defaultAction": "replace",
       "latencyImpact": "moderate",
       "costImpact": "medium",
-      "constraints": ["deprecated by FIPS 186-5"],
-      "notPrimaryFor": ["signatures"],
-      "references": ["FIPS 186-5"],
+      "constraints": [
+        "deprecated by FIPS 186-5"
+      ],
+      "notPrimaryFor": [
+        "signatures"
+      ],
+      "references": [
+        "FIPS 186-5"
+      ],
       "notes": ""
     },
     {
       "id": "ecdsa",
       "displayName": "ECDSA",
-      "aliases": ["ECDSA", "ECDSA-P256", "ECDSA-P384", "P-256", "PRIME256V1", "SECP256R1"],
+      "aliases": [
+        "ECDSA",
+        "ECDSA-P256",
+        "ECDSA-P384",
+        "P-256",
+        "PRIME256V1",
+        "SECP256R1"
+      ],
       "family": "asymmetric",
       "standard": "FIPS 186-5",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["signatures", "certificates"],
+      "useCases": [
+        "signatures",
+        "certificates"
+      ],
       "securityProfile": "acceptable",
       "classicalStatus": "acceptable",
       "quantumStatus": "vulnerable",
       "defaultAction": "replace",
       "latencyImpact": "moderate; larger signatures and certificates",
       "costImpact": "medium; PKI, client and library changes",
-      "constraints": ["vulnerable to Shor's algorithm", "PQ certificate ecosystem still maturing"],
-      "notPrimaryFor": ["long-lived signatures"],
-      "references": ["FIPS 186-5"],
+      "constraints": [
+        "vulnerable to Shor's algorithm",
+        "PQ certificate ecosystem still maturing"
+      ],
+      "notPrimaryFor": [
+        "long-lived signatures"
+      ],
+      "references": [
+        "FIPS 186-5"
+      ],
       "notes": ""
     },
     {
       "id": "eddsa",
       "displayName": "Ed25519",
-      "aliases": ["ED25519", "EDDSA", "ED448"],
+      "aliases": [
+        "ED25519",
+        "EDDSA",
+        "ED448"
+      ],
       "family": "asymmetric",
       "standard": "RFC 8032",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["signatures"],
+      "useCases": [
+        "signatures"
+      ],
       "securityProfile": "acceptable",
       "classicalStatus": "acceptable",
       "quantumStatus": "vulnerable",
       "defaultAction": "replace",
       "latencyImpact": "moderate; larger signatures",
       "costImpact": "medium",
-      "constraints": ["vulnerable to Shor's algorithm"],
-      "notPrimaryFor": ["long-lived signatures"],
-      "references": ["RFC 8032"],
+      "constraints": [
+        "vulnerable to Shor's algorithm"
+      ],
+      "notPrimaryFor": [
+        "long-lived signatures"
+      ],
+      "references": [
+        "RFC 8032"
+      ],
       "notes": ""
     },
     {
       "id": "ecdh",
       "displayName": "ECDH",
-      "aliases": ["ECDH", "ECDHE", "P-256", "SECP256R1"],
+      "aliases": [
+        "ECDH",
+        "ECDHE",
+        "P-256",
+        "SECP256R1"
+      ],
       "family": "asymmetric",
       "standard": "NIST SP 800-56A",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["key-establishment"],
+      "useCases": [
+        "key-establishment"
+      ],
       "securityProfile": "acceptable",
       "classicalStatus": "acceptable",
       "quantumStatus": "vulnerable",
       "defaultAction": "hybridize",
       "latencyImpact": "moderate; larger handshake messages",
       "costImpact": "medium; protocol and library changes",
-      "constraints": ["vulnerable to Shor's algorithm"],
-      "notPrimaryFor": ["long-lived confidentiality"],
-      "references": ["NIST SP 800-56A"],
+      "constraints": [
+        "vulnerable to Shor's algorithm"
+      ],
+      "notPrimaryFor": [
+        "long-lived confidentiality"
+      ],
+      "references": [
+        "NIST SP 800-56A"
+      ],
       "notes": ""
     },
     {
       "id": "x25519",
       "displayName": "X25519",
-      "aliases": ["X25519", "CURVE25519", "X448"],
+      "aliases": [
+        "X25519",
+        "CURVE25519",
+        "X448"
+      ],
       "family": "asymmetric",
       "standard": "RFC 7748",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["key-establishment"],
+      "useCases": [
+        "key-establishment"
+      ],
       "securityProfile": "acceptable",
       "classicalStatus": "acceptable",
       "quantumStatus": "vulnerable",
       "defaultAction": "hybridize",
       "latencyImpact": "moderate; larger handshake messages",
       "costImpact": "low to medium; widely deployed hybrid groups exist",
-      "constraints": ["vulnerable to Shor's algorithm"],
-      "notPrimaryFor": ["long-lived confidentiality"],
-      "references": ["RFC 7748", "RFC 10024"],
+      "constraints": [
+        "vulnerable to Shor's algorithm"
+      ],
+      "notPrimaryFor": [
+        "long-lived confidentiality"
+      ],
+      "references": [
+        "RFC 7748",
+        "RFC 10024"
+      ],
       "notes": "X25519MLKEM768 is the preferred TLS 1.3 hybrid group."
     },
     {
       "id": "x25519mlkem768",
       "displayName": "X25519MLKEM768",
-      "aliases": ["X25519MLKEM768", "X25519-MLKEM768", "SECP256R1MLKEM768", "SECP384R1MLKEM1024"],
+      "aliases": [
+        "X25519MLKEM768",
+        "X25519-MLKEM768",
+        "SECP256R1MLKEM768",
+        "SECP384R1MLKEM1024"
+      ],
       "family": "kem",
       "standard": "RFC 10024 / FIPS 203",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["key-establishment", "tls"],
+      "useCases": [
+        "key-establishment",
+        "tls"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "hybridize",
       "latencyImpact": "moderate; larger ClientHello and handshake",
       "costImpact": "medium; client and server library support required",
-      "constraints": ["TLS 1.3", "client and server support", "record-size and middlebox testing"],
-      "notPrimaryFor": ["signatures", "non-TLS protocols without equivalent support"],
-      "references": ["RFC 10024", "FIPS 203"],
+      "constraints": [
+        "TLS 1.3",
+        "client and server support",
+        "record-size and middlebox testing"
+      ],
+      "notPrimaryFor": [
+        "signatures",
+        "non-TLS protocols without equivalent support"
+      ],
+      "references": [
+        "RFC 10024",
+        "FIPS 203"
+      ],
       "notes": "Hybrid transition option retaining a classical component."
     },
     {
       "id": "ml-kem-768",
       "displayName": "ML-KEM-768",
-      "aliases": ["ML-KEM", "ML-KEM-768", "KYBER768", "CRYSTALS-KYBER"],
+      "aliases": [
+        "ML-KEM",
+        "ML-KEM-768",
+        "KYBER768",
+        "CRYSTALS-KYBER"
+      ],
       "family": "kem",
       "standard": "FIPS 203",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["key-establishment", "tls"],
+      "useCases": [
+        "key-establishment",
+        "tls"
+      ],
       "securityProfile": "balanced",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "hybridize",
       "latencyImpact": "moderate; larger keys and ciphertexts",
       "costImpact": "medium",
-      "constraints": ["requires protocol and library support"],
-      "notPrimaryFor": ["digital-signature"],
-      "references": ["FIPS 203", "RFC 10024"],
+      "constraints": [
+        "requires protocol and library support"
+      ],
+      "notPrimaryFor": [
+        "digital-signature"
+      ],
+      "references": [
+        "FIPS 203",
+        "RFC 10024"
+      ],
       "notes": "NIST primary KEM for general key establishment."
     },
     {
       "id": "ml-kem-1024",
       "displayName": "ML-KEM-1024",
-      "aliases": ["ML-KEM-1024"],
+      "aliases": [
+        "ML-KEM-1024"
+      ],
       "family": "kem",
       "standard": "FIPS 203",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["key-establishment", "tls"],
+      "useCases": [
+        "key-establishment",
+        "tls"
+      ],
       "securityProfile": "high",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "hybridize",
       "latencyImpact": "higher; largest ML-KEM parameter set",
       "costImpact": "medium",
-      "constraints": ["requires protocol and library support"],
-      "notPrimaryFor": ["digital-signature"],
-      "references": ["FIPS 203", "CNSA 2.0"],
+      "constraints": [
+        "requires protocol and library support"
+      ],
+      "notPrimaryFor": [
+        "digital-signature"
+      ],
+      "references": [
+        "FIPS 203",
+        "CNSA 2.0"
+      ],
       "notes": "CNSA 2.0 parameter set for key establishment."
     },
     {
       "id": "ml-dsa-65",
       "displayName": "ML-DSA-65",
-      "aliases": ["ML-DSA", "ML-DSA-65", "DILITHIUM3"],
+      "aliases": [
+        "ML-DSA",
+        "ML-DSA-65",
+        "DILITHIUM3"
+      ],
       "family": "signature",
       "standard": "FIPS 204",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["signatures", "certificates"],
+      "useCases": [
+        "signatures",
+        "certificates"
+      ],
       "securityProfile": "balanced",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "replace",
       "latencyImpact": "moderate; larger signatures",
       "costImpact": "medium",
-      "constraints": ["requires protocol, library and PKI support"],
-      "notPrimaryFor": ["key-establishment"],
-      "references": ["FIPS 204"],
+      "constraints": [
+        "requires protocol, library and PKI support"
+      ],
+      "notPrimaryFor": [
+        "key-establishment"
+      ],
+      "references": [
+        "FIPS 204"
+      ],
       "notes": "NIST primary general-purpose signature standard."
     },
     {
       "id": "ml-dsa-87",
       "displayName": "ML-DSA-87",
-      "aliases": ["ML-DSA-87", "DILITHIUM5"],
+      "aliases": [
+        "ML-DSA-87",
+        "DILITHIUM5"
+      ],
       "family": "signature",
       "standard": "FIPS 204",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["signatures", "certificates"],
+      "useCases": [
+        "signatures",
+        "certificates"
+      ],
       "securityProfile": "high",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "replace",
       "latencyImpact": "higher; largest ML-DSA parameter set",
       "costImpact": "medium",
-      "constraints": ["requires protocol, library and PKI support"],
-      "notPrimaryFor": ["key-establishment"],
-      "references": ["FIPS 204", "CNSA 2.0"],
+      "constraints": [
+        "requires protocol, library and PKI support"
+      ],
+      "notPrimaryFor": [
+        "key-establishment"
+      ],
+      "references": [
+        "FIPS 204",
+        "CNSA 2.0"
+      ],
       "notes": "CNSA 2.0 parameter set for signatures."
     },
     {
       "id": "slh-dsa",
       "displayName": "SLH-DSA",
-      "aliases": ["SLH-DSA", "SPHINCS", "SPHINCS+"],
+      "aliases": [
+        "SLH-DSA",
+        "SPHINCS",
+        "SPHINCS+"
+      ],
       "family": "signature",
       "standard": "FIPS 205",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["signatures", "firmware"],
+      "useCases": [
+        "signatures",
+        "firmware"
+      ],
       "securityProfile": "high",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "replace",
       "latencyImpact": "higher CPU and signature size",
       "costImpact": "medium to high",
-      "constraints": ["hash-based; larger signatures", "slower signing than lattice schemes"],
-      "notPrimaryFor": ["latency-critical signing"],
-      "references": ["FIPS 205"],
+      "constraints": [
+        "hash-based; larger signatures",
+        "slower signing than lattice schemes"
+      ],
+      "notPrimaryFor": [
+        "latency-critical signing"
+      ],
+      "references": [
+        "FIPS 205"
+      ],
       "notes": "Preferred where conservative hash-only assumptions matter, such as firmware."
     },
     {
       "id": "lms-xmss",
       "displayName": "LMS / XMSS",
-      "aliases": ["LMS", "XMSS", "HSS", "XMSSMT"],
+      "aliases": [
+        "LMS",
+        "XMSS",
+        "HSS",
+        "XMSSMT"
+      ],
       "family": "signature",
       "standard": "NIST SP 800-208",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["firmware", "signatures"],
+      "useCases": [
+        "firmware",
+        "signatures"
+      ],
       "securityProfile": "high",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "replace",
       "latencyImpact": "moderate",
       "costImpact": "medium; state management required",
-      "constraints": ["stateful", "one-time signature state must never be reused"],
-      "notPrimaryFor": ["general-purpose signing without state control"],
-      "references": ["NIST SP 800-208"],
+      "constraints": [
+        "stateful",
+        "one-time signature state must never be reused"
+      ],
+      "notPrimaryFor": [
+        "general-purpose signing without state control"
+      ],
+      "references": [
+        "NIST SP 800-208"
+      ],
       "notes": "Viable for constrained firmware signing with controlled state."
     },
     {
       "id": "hqc",
       "displayName": "HQC",
-      "aliases": ["HQC"],
+      "aliases": [
+        "HQC"
+      ],
       "family": "kem",
       "standard": "Selected for standardization (NIST, March 2025)",
       "status": "selected",
       "reviewedOn": "2026-11-19",
-      "useCases": ["key-establishment", "diversity"],
+      "useCases": [
+        "key-establishment",
+        "diversity"
+      ],
       "securityProfile": "alternative",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "monitor",
       "latencyImpact": "higher; large public keys",
       "costImpact": "high; limited deployment support",
-      "constraints": ["no final FIPS standard yet", "backup/diversity role"],
-      "notPrimaryFor": ["default production deployment"],
-      "references": ["NIST IR 8545"],
+      "constraints": [
+        "no final FIPS standard yet",
+        "backup/diversity role"
+      ],
+      "notPrimaryFor": [
+        "default production deployment"
+      ],
+      "references": [
+        "NIST IR 8545"
+      ],
       "notes": "Track as a diversity option; do not present as interchangeable with FIPS 203."
     },
     {
       "id": "fn-dsa",
       "displayName": "FN-DSA",
-      "aliases": ["FN-DSA", "FALCON", "FIPS206"],
+      "aliases": [
+        "FN-DSA",
+        "FALCON",
+        "FIPS206"
+      ],
       "family": "signature",
       "standard": "FIPS 206 (draft)",
       "status": "draft",
       "reviewedOn": "2026-11-19",
-      "useCases": ["signatures"],
+      "useCases": [
+        "signatures"
+      ],
       "securityProfile": "alternative",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "monitor",
       "latencyImpact": "low verification cost; compact signatures",
       "costImpact": "high; implementation and side-channel maturity",
-      "constraints": ["draft standard", "implementation complexity"],
-      "notPrimaryFor": ["default production deployment"],
-      "references": ["FIPS 206 draft"],
+      "constraints": [
+        "draft standard",
+        "implementation complexity"
+      ],
+      "notPrimaryFor": [
+        "default production deployment"
+      ],
+      "references": [
+        "FIPS 206 draft"
+      ],
       "notes": "Future compact-signature option; verify final standard before adoption."
     },
     {
@@ -671,94 +1101,153 @@
       "standard": "IETF LAMPS (in progress)",
       "status": "draft",
       "reviewedOn": "2026-11-19",
-      "useCases": ["certificates", "tls"],
+      "useCases": [
+        "certificates",
+        "tls"
+      ],
       "securityProfile": "transition",
       "classicalStatus": "strong",
       "quantumStatus": "resistant",
       "defaultAction": "reissue-certificate",
       "latencyImpact": "larger certificates and handshakes",
       "costImpact": "high; CA, client and trust-store support required",
-      "constraints": ["CA support", "client compatibility", "chain size"],
-      "notPrimaryFor": ["immediate universal deployment"],
-      "references": ["IETF LAMPS working group"],
+      "constraints": [
+        "CA support",
+        "client compatibility",
+        "chain size"
+      ],
+      "notPrimaryFor": [
+        "immediate universal deployment"
+      ],
+      "references": [
+        "IETF LAMPS working group"
+      ],
       "notes": "Staged option while PQ certificate ecosystems mature."
     },
     {
       "id": "tls-1.3",
       "displayName": "TLS 1.3",
-      "aliases": ["TLS1.3", "TLSV1.3", "TLS-1.3"],
+      "aliases": [
+        "TLS1.3",
+        "TLSV1.3",
+        "TLS-1.3"
+      ],
       "family": "protocol",
       "standard": "RFC 8446",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["transport"],
+      "useCases": [
+        "transport"
+      ],
       "securityProfile": "strong",
       "classicalStatus": "strong",
       "quantumStatus": "vulnerable",
       "defaultAction": "hybridize",
       "latencyImpact": "moderate during hybrid handshake rollout",
       "costImpact": "medium",
-      "constraints": ["key exchange remains classical until a hybrid group is enabled"],
+      "constraints": [
+        "key exchange remains classical until a hybrid group is enabled"
+      ],
       "notPrimaryFor": [],
-      "references": ["RFC 8446", "RFC 10024"],
+      "references": [
+        "RFC 8446",
+        "RFC 10024"
+      ],
       "notes": ""
     },
     {
       "id": "tls-1.2",
       "displayName": "TLS 1.2",
-      "aliases": ["TLS1.2", "TLSV1.2", "TLS-1.2"],
+      "aliases": [
+        "TLS1.2",
+        "TLSV1.2",
+        "TLS-1.2"
+      ],
       "family": "protocol",
       "standard": "RFC 5246",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["transport"],
+      "useCases": [
+        "transport"
+      ],
       "securityProfile": "acceptable",
       "classicalStatus": "acceptable",
       "quantumStatus": "vulnerable",
       "defaultAction": "reconfigure",
       "latencyImpact": "low",
       "costImpact": "low to medium",
-      "constraints": ["legacy cipher suites and configuration"],
-      "notPrimaryFor": ["new deployments"],
-      "references": ["RFC 5246", "RFC 8446"],
+      "constraints": [
+        "legacy cipher suites and configuration"
+      ],
+      "notPrimaryFor": [
+        "new deployments"
+      ],
+      "references": [
+        "RFC 5246",
+        "RFC 8446"
+      ],
       "notes": "Plan a TLS 1.3 migration before enabling hybrid key exchange."
     },
     {
       "id": "tls-legacy",
       "displayName": "TLS 1.0 / 1.1",
-      "aliases": ["TLSV1", "TLSV1.0", "TLSV1.1", "TLS1.0", "TLS1.1", "SSLV3", "SSLV2", "TLSV1.0"],
+      "aliases": [
+        "TLSV1",
+        "TLSV1.0",
+        "TLSV1.1",
+        "TLS1.0",
+        "TLS1.1",
+        "SSLV3",
+        "SSLV2",
+        "TLSV1.0"
+      ],
       "family": "protocol",
       "standard": "Deprecated (RFC 8996)",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["transport"],
+      "useCases": [
+        "transport"
+      ],
       "securityProfile": "deprecated",
       "classicalStatus": "deprecated",
       "quantumStatus": "vulnerable",
       "defaultAction": "reconfigure",
       "latencyImpact": "low",
       "costImpact": "medium; legacy clients may block",
-      "constraints": ["deprecated protocol", "legacy client compatibility"],
-      "notPrimaryFor": ["any new deployment"],
-      "references": ["RFC 8996"],
+      "constraints": [
+        "deprecated protocol",
+        "legacy client compatibility"
+      ],
+      "notPrimaryFor": [
+        "any new deployment"
+      ],
+      "references": [
+        "RFC 8996"
+      ],
       "notes": ""
     },
     {
       "id": "self-signed-cert",
       "displayName": "Self-signed certificate",
-      "aliases": ["SELF-SIGNED-CERT"],
+      "aliases": [
+        "SELF-SIGNED-CERT"
+      ],
       "family": "certificate",
       "standard": "Configuration review",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["certificates"],
+      "useCases": [
+        "certificates"
+      ],
       "securityProfile": "review",
       "classicalStatus": "unknown",
       "quantumStatus": "unknown",
       "defaultAction": "manual-review",
       "latencyImpact": "unknown",
       "costImpact": "unknown",
-      "constraints": ["trust model must be confirmed"],
+      "constraints": [
+        "trust model must be confirmed"
+      ],
       "notPrimaryFor": [],
       "references": [],
       "notes": "Self-signed is expected in development and mTLS test setups."
@@ -766,104 +1255,275 @@
     {
       "id": "long-validity-cert",
       "displayName": "Long-validity certificate",
-      "aliases": ["LONG-VALIDITY-CERT"],
+      "aliases": [
+        "LONG-VALIDITY-CERT"
+      ],
       "family": "certificate",
       "standard": "Lifecycle review",
       "status": "final",
       "reviewedOn": "2026-11-19",
-      "useCases": ["certificates"],
+      "useCases": [
+        "certificates"
+      ],
       "securityProfile": "review",
       "classicalStatus": "unknown",
       "quantumStatus": "vulnerable",
       "defaultAction": "reissue-certificate",
       "latencyImpact": "low",
       "costImpact": "low to medium",
-      "constraints": ["validity period exceeds the planned crypto transition window"],
+      "constraints": [
+        "validity period exceeds the planned crypto transition window"
+      ],
       "notPrimaryFor": [],
       "references": [],
       "notes": "Plan reissue at the next renewal window."
+    },
+    {
+      "id": "pbkdf2",
+      "displayName": "PBKDF2",
+      "aliases": [
+        "PBKDF2",
+        "PBKDF2-HMAC-SHA256"
+      ],
+      "family": "kdf",
+      "standard": "RFC 8018",
+      "status": "final",
+      "reviewedOn": "2026-11-19",
+      "useCases": [
+        "password-storage"
+      ],
+      "securityProfile": "deprecated",
+      "classicalStatus": "deprecated",
+      "quantumStatus": "weakened",
+      "defaultAction": "replace",
+      "latencyImpact": "configurable iteration count",
+      "costImpact": "low",
+      "constraints": [
+        "acceptable only with a tuned iteration count",
+        "not memory-hard"
+      ],
+      "notPrimaryFor": [],
+      "references": [
+        "RFC 8018",
+        "OWASP Password Storage Cheat Sheet"
+      ],
+      "notes": "Replace with Argon2id or scrypt; PBKDF2 remains only as a compatibility fallback."
+    },
+    {
+      "id": "hmac-sha256",
+      "displayName": "HMAC-SHA256",
+      "aliases": [
+        "HMAC-SHA256",
+        "HMACSHA256",
+        "HMAC"
+      ],
+      "family": "mac",
+      "standard": "FIPS 198-1",
+      "status": "final",
+      "reviewedOn": "2026-11-19",
+      "useCases": [
+        "integrity",
+        "authentication"
+      ],
+      "securityProfile": "strong",
+      "classicalStatus": "strong",
+      "quantumStatus": "weakened",
+      "defaultAction": "retain",
+      "latencyImpact": "negligible",
+      "costImpact": "low",
+      "constraints": [
+        "HMAC-SHA1 variants must be replaced"
+      ],
+      "notPrimaryFor": [],
+      "references": [
+        "FIPS 198-1",
+        "NIST SP 800-131A Rev 2"
+      ],
+      "notes": "Retain HMAC-SHA256; only HMAC-SHA1 and HMAC-MD5 need replacement."
     }
   ],
   "migrationPaths": [
     {
       "id": "password-storage",
-      "roles": ["password-storage"],
+      "roles": [
+        "password-storage"
+      ],
       "candidates": [
-        {"entryId": "argon2id", "fit": "preferred"},
-        {"entryId": "bcrypt", "fit": "acceptable-alternative"},
-        {"entryId": "scrypt", "fit": "acceptable-alternative"}
+        {
+          "entryId": "argon2id",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "bcrypt",
+          "fit": "acceptable-alternative"
+        },
+        {
+          "entryId": "scrypt",
+          "fit": "acceptable-alternative"
+        }
       ]
     },
     {
       "id": "hash-integrity",
-      "roles": ["hashing", "integrity"],
+      "roles": [
+        "hashing",
+        "integrity"
+      ],
       "candidates": [
-        {"entryId": "sha-384", "fit": "preferred"},
-        {"entryId": "sha-256", "fit": "acceptable-alternative"},
-        {"entryId": "sha3-384", "fit": "acceptable-alternative"}
+        {
+          "entryId": "sha-384",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "sha-256",
+          "fit": "acceptable-alternative"
+        },
+        {
+          "entryId": "sha3-384",
+          "fit": "acceptable-alternative"
+        }
       ]
     },
     {
       "id": "legacy-symmetric",
-      "roles": ["encryption"],
+      "roles": [
+        "encryption"
+      ],
       "candidates": [
-        {"entryId": "aes-256-gcm", "fit": "preferred"},
-        {"entryId": "chacha20-poly1305", "fit": "acceptable-alternative"}
+        {
+          "entryId": "aes-256-gcm",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "chacha20-poly1305",
+          "fit": "acceptable-alternative"
+        }
       ]
     },
     {
       "id": "symmetric-strength",
-      "roles": ["encryption"],
+      "roles": [
+        "encryption"
+      ],
       "candidates": [
-        {"entryId": "aes-256-gcm", "fit": "preferred"},
-        {"entryId": "chacha20-poly1305", "fit": "acceptable-alternative"}
+        {
+          "entryId": "aes-256-gcm",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "chacha20-poly1305",
+          "fit": "acceptable-alternative"
+        }
       ]
     },
     {
       "id": "key-establishment",
-      "roles": ["key-establishment", "transport"],
+      "roles": [
+        "key-establishment",
+        "transport"
+      ],
       "candidates": [
-        {"entryId": "x25519mlkem768", "fit": "preferred"},
-        {"entryId": "ml-kem-768", "fit": "acceptable-alternative"},
-        {"entryId": "ml-kem-1024", "fit": "cnsa-preferred"},
-        {"entryId": "hqc", "fit": "tracked-future"}
+        {
+          "entryId": "x25519mlkem768",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "ml-kem-768",
+          "fit": "acceptable-alternative"
+        },
+        {
+          "entryId": "ml-kem-1024",
+          "fit": "cnsa-preferred"
+        },
+        {
+          "entryId": "hqc",
+          "fit": "tracked-future"
+        }
       ]
     },
     {
       "id": "signature",
-      "roles": ["signing", "token-signing"],
+      "roles": [
+        "signing",
+        "token-signing"
+      ],
       "candidates": [
-        {"entryId": "ml-dsa-65", "fit": "preferred"},
-        {"entryId": "ml-dsa-87", "fit": "cnsa-preferred"},
-        {"entryId": "slh-dsa", "fit": "acceptable-alternative"},
-        {"entryId": "fn-dsa", "fit": "tracked-future"}
+        {
+          "entryId": "ml-dsa-65",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "ml-dsa-87",
+          "fit": "cnsa-preferred"
+        },
+        {
+          "entryId": "slh-dsa",
+          "fit": "acceptable-alternative"
+        },
+        {
+          "entryId": "fn-dsa",
+          "fit": "tracked-future"
+        }
       ]
     },
     {
       "id": "firmware-signature",
-      "roles": ["firmware-signing"],
+      "roles": [
+        "firmware-signing"
+      ],
       "candidates": [
-        {"entryId": "slh-dsa", "fit": "preferred"},
-        {"entryId": "lms-xmss", "fit": "acceptable-alternative"},
-        {"entryId": "ml-dsa-65", "fit": "acceptable-alternative"},
-        {"entryId": "fn-dsa", "fit": "tracked-future"}
+        {
+          "entryId": "slh-dsa",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "lms-xmss",
+          "fit": "acceptable-alternative"
+        },
+        {
+          "entryId": "ml-dsa-65",
+          "fit": "acceptable-alternative"
+        },
+        {
+          "entryId": "fn-dsa",
+          "fit": "tracked-future"
+        }
       ]
     },
     {
       "id": "certificate",
-      "roles": ["certificate"],
+      "roles": [
+        "certificate"
+      ],
       "candidates": [
-        {"entryId": "ml-dsa-65", "fit": "preferred"},
-        {"entryId": "hybrid-certificate", "fit": "transition"},
-        {"entryId": "ml-dsa-87", "fit": "cnsa-preferred"}
+        {
+          "entryId": "ml-dsa-65",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "hybrid-certificate",
+          "fit": "transition"
+        },
+        {
+          "entryId": "ml-dsa-87",
+          "fit": "cnsa-preferred"
+        }
       ]
     },
     {
       "id": "protocol",
-      "roles": ["transport"],
+      "roles": [
+        "transport"
+      ],
       "candidates": [
-        {"entryId": "tls-1.3", "fit": "preferred"},
-        {"entryId": "x25519mlkem768", "fit": "transition"}
+        {
+          "entryId": "tls-1.3",
+          "fit": "preferred"
+        },
+        {
+          "entryId": "x25519mlkem768",
+          "fit": "transition"
+        }
       ]
     }
   ]

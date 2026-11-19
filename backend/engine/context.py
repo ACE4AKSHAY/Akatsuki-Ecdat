@@ -32,6 +32,12 @@ def _contains(text: str, hints: Tuple[str, ...]) -> bool:
     return any(hint in text for hint in hints)
 
 
+def _contains_ci(text: str, hints: Tuple[str, ...]) -> bool:
+    """Case-insensitive hint match, used for raw code signals."""
+    lowered = (text or "").lower()
+    return any(hint.lower() in lowered for hint in hints)
+
+
 def infer_usage_context(
     file_path: str,
     raw_signal: str,
@@ -53,10 +59,12 @@ def infer_usage_context(
     if category == "protocol" or _contains(path, _TRANSPORT_HINTS):
         return "transport", 0.85
 
-    if category == "kdf" and _contains(path + signal, _PASSWORD_HINTS):
-        return "password-storage", 0.9
+    if category == "kdf":
+        if _contains_ci(path + " " + signal, _PASSWORD_HINTS):
+            return "password-storage", 0.95
+        return "password-storage", 0.75
 
-    if _contains(path, _PASSWORD_HINTS) or _contains(signal, _PASSWORD_SIGNAL_HINTS):
+    if _contains(path, _PASSWORD_HINTS) or _contains_ci(signal, _PASSWORD_SIGNAL_HINTS):
         return "password-storage", 0.9
 
     if _contains(path, _FIRMWARE_HINTS) and (category in {"signature", "asymmetric_sig"} or "sign" in signal or "rsa" in primitive):
@@ -77,12 +85,12 @@ def infer_usage_context(
     if category in {"symmetric", "symmetric-cipher", "cipher"}:
         return "encryption", 0.8
 
-    if category in {"hash", "mac"}:
+    if category in {"hash", "mac", "kdf"}:
         if _contains(path, _SIGN_HINTS) or "sign" in signal:
             return "signing", 0.6
         return "hashing", 0.75
 
-    if _contains(signal, _SIGN_HINTS):
+    if _contains_ci(signal, _SIGN_HINTS):
         return "signing", 0.6
 
     return "unknown", 0.0

@@ -35,6 +35,9 @@ _CATEGORY_TO_USE_CASE = {
     "protocol": "transport",
     "cipher": "encryption",
     "symmetric-cipher": "encryption",
+    "symmetric": "encryption",
+    "kdf": "password-storage",
+    "mac": "integrity",
 }
 
 _ACTION_BY_FAMILY = {
@@ -44,6 +47,7 @@ _ACTION_BY_FAMILY = {
     "kdf": "replace",
     "protocol": "reconfigure",
     "certificate": "reissue-certificate",
+    "mac": "retain",
 }
 
 
@@ -157,7 +161,7 @@ def candidate_view(entry_id: str, fit: str = "preferred", compliance_target: str
     if not entry:
         return None
 
-    action = _ACTION_BY_FAMILY.get(entry["family"], "manual-review")
+    action = entry.get("defaultAction") or _ACTION_BY_FAMILY.get(entry["family"], "manual-review")
     if entry["family"] == "kem":
         action = "hybridize"
     if entry["id"] in {"hqc", "fn-dsa"}:

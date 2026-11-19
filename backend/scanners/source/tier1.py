@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 from backend.scanners._finding import RawFinding
 from backend.scanners.source.config import load_signals
@@ -59,6 +59,34 @@ def _line_col(text: str, offset: int) -> tuple[int, int]:
     return line, col
 
 
+# Mode spellings seen across Python, Java and Node APIs.
+_MODE_PATTERNS = (
+    re.compile(r"modes\.(\w+)"),
+    re.compile(r"/(ECB|CBC|GCM|CTR|CFB|OFB|CFB8)(?![A-Za-z0-9])"),
+    re.compile(r"-(cbc|ecb|gcm|ctr|cfb|ofb)\b", re.IGNORECASE),
+)
+_AES_KEY_MODE_RE = re.compile(r"aes-(\d+)-(\w+)", re.IGNORECASE)
+
+
+def _mode_from_match(match_text: str) -> Optional[str]:
+    """Extract a cipher mode name from the matched signal text."""
+    for rx in _MODE_PATTERNS:
+        m = rx.search(match_text)
+        if m:
+            return m.group(1).upper()
+    return None
+
+
+def _key_size_from_match(match_text: str) -> Optional[int]:
+    m = _AES_KEY_MODE_RE.search(match_text)
+    if m:
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return None
+    return None
+
+
 def scan_file(
     path: str | Path,
     *,
@@ -96,15 +124,9 @@ def scan_file(
                         continue
                 key_size = sig.get("keySizeBits")
                 mode = sig.get("mode")
-                # Heuristic: extract AES mode from createCipheriv arg if present
-                if sig.get("id") == "AES":
-                    mg = re.search(r"aes-(\d+)-(\w+)", m.group(0), re.IGNORECASE)
-                    if mg:
-                        try:
-                            key_size = int(mg.group(1))
-                        except ValueError:
-                            pass
-                        mode = mg.group(2).upper()
+                if sig.get("mode_from_match"):
+                    mode = _mode_from_match(m.group(0)) or mode
+                    key_size = _key_size_from_match(m.group(0)) or key_size
                 findings.append(
                     RawFinding(
                         sourceModule="M1_source_scanner",

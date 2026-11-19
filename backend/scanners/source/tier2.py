@@ -41,6 +41,18 @@ _LANG_PTRS = {
 
 _PARSERS: dict[str, Parser] = {}
 
+# Node kinds that represent "this value is constructed here" in each language.
+# Go struct literals and Java object creation carry real crypto configuration
+# (tls.Config{MinVersion: ...}, new BCryptPasswordEncoder()) that a plain
+# call expression would miss.
+_NODE_TYPES_BY_LANGUAGE: dict[str, tuple[str, ...]] = {
+    "python": ("call",),
+    "java": ("method_invocation", "object_creation_expression"),
+    "javascript": ("call_expression", "new_expression"),
+    "typescript": ("call_expression", "new_expression"),
+    "go": ("call_expression", "composite_literal"),
+}
+
 
 def _parser(language: str) -> Parser | None:
     if language not in _LANG_PTRS:
@@ -62,6 +74,17 @@ def _is_crypto_node_text(text: str) -> bool:
         "md5", "rsa", "RSA_new", "EVP_EncryptInit_ex", "EVP_DigestInit_ex",
         "MD5_Init", "SHA1_Init", "DES_set_key", "algorithms.AES", "modes.ECB",
         "modes.CBC", "modes.GCM", "New", "modulusLength",
+        # Key derivation and password hashing
+        "bcrypt", "BCrypt", "argon2", "Argon2", "scrypt", "SCrypt", "pbkdf2",
+        "PBKDF2", "Rfc2898", "hashpw", "gensalt", "checkpw", "PasswordHasher",
+        "PasswordEncoder",
+        # MAC
+        "createHmac", "HMAC", "Hmac", "NewHMAC",
+        # Stream ciphers
+        "ChaCha", "chacha",
+        # Transport
+        "SSLContext", "PROTOCOL_TLS", "tls.Config", "tls.Version", "tls.createServer",
+        "createSecureContext", "SSLSocket", "SSLEngine",
     )
     return any(verb in text for verb in crypto_verbs)
 
@@ -86,23 +109,33 @@ def _line_for_offset(src: bytes, offset: int) -> int:
     return src[:offset].decode("utf-8", errors="replace").count("\n") + 1
 
 
-def _find_smallest_call_containing(root, line: int, src: bytes):
-    """Find the smallest `call` / `method_invocation` / `call_expression`
-    node whose byte range includes `line`. Returns None if no such node.
+def _call_candidates(root, line: int, src: bytes, language: str = "") -> list:
+    """Return every call node that spans `line`, smallest first.
 
     `line` is 1-based. A node is considered to "contain" line L if its
     start line is <= L and its end line is >= L (in 1-based terms).
     """
+    node_types = _NODE_TYPES_BY_LANGUAGE.get(language, ("call", "call_expression", "method_invocation"))
     candidates = []
-    for n in _walk(root, ("call", "call_expression", "method_invocation")):
+    for n in _walk(root, node_types):
         start_line = _line_for_offset(src, n.start_byte)
         end_line = _line_for_offset(src, max(n.end_byte - 1, n.start_byte))
         if start_line <= line <= end_line:
             candidates.append((n.end_byte - n.start_byte, n))
+    candidates.sort(key=lambda t: t[0])
+    return [node for _, node in candidates]
+
+
+def _find_smallest_call_containing(root, line: int, src: bytes, language: str = "", predicate=None):
+    """Find the smallest call node on `line`, honouring an optional predicate."""
+    candidates = _call_candidates(root, line, src, language)
     if not candidates:
         return None
-    candidates.sort(key=lambda t: t[0])
-    return candidates[0][1]
+    if predicate is not None:
+        for node in candidates:
+            if predicate(node):
+                return node
+    return candidates[0]
 
 
 def _extract_args(node, src: bytes) -> dict:
@@ -127,6 +160,14 @@ def _extract_args(node, src: bytes) -> dict:
         parts = m.group(1).split("/")
         if len(parts) >= 2:
             out["mode"] = parts[1]
+    # `algorithms.AES(b"k" * 16)` — key length in bytes from the literal.
+    m = re.search(r"algorithms\.AES\(\s*(?:b)?[\"']([^\"']*)[\"']\s*(?:\*\s*(\d+))?", text)
+    if m:
+        out["keySizeBits"] = len(m.group(1)) * 8 * int(m.group(2) or 1)
+    # Python modes.ECB() / modes.GCM() carry the mode of the surrounding cipher.
+    m = re.search(r"modes\.(ECB|CBC|GCM|CTR|CFB|OFB)\b", text)
+    if m:
+        out["mode"] = m.group(1).upper()
     return out
 
 
@@ -141,7 +182,14 @@ def _confirm_one(hit: RawFinding, src: bytes) -> RawFinding | None:
         return None
     tree = parser.parse(src)
     line = hit.lineNumber
-    call_node = _find_smallest_call_containing(tree.root_node, line, src)
+
+    def _is_crypto_call(node) -> bool:
+        snippet = src[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+        return _is_crypto_node_text(snippet)
+
+    crypto_nodes = [n for n in _call_candidates(tree.root_node, line, src, hit.language or "")
+                     if _is_crypto_call(n)]
+    call_node = crypto_nodes[0] if crypto_nodes else None
     if call_node is None:
         # Special case: hits that are just identifiers (e.g. `crypto/sha1`
         # import). Confirm if the identifier token is on a known import line.
@@ -160,7 +208,13 @@ def _confirm_one(hit: RawFinding, src: bytes) -> RawFinding | None:
     text = src[call_node.start_byte:call_node.end_byte].decode("utf-8", errors="replace")
     if not _is_crypto_node_text(text):
         return None
-    args = _extract_args(call_node, src)
+    # A single line often carries several crypto calls, e.g.
+    # `Cipher(algorithms.AES(b"k" * 16), modes.ECB())` — the key length and
+    # the mode live in different calls, so evidence is merged across them.
+    args: dict = {}
+    for node in crypto_nodes:
+        for key, value in _extract_args(node, src).items():
+            args.setdefault(key, value)
     update = {
         "detectionTier": "ast",
         "confidence": 0.95,
@@ -208,11 +262,36 @@ def confirm(findings: list[RawFinding]) -> list[RawFinding]:
             if new is not None:
                 confirmed.append(new)
 
-    # Dedup: (filePath, lineNumber, detectedPrimitive) — AST wins over regex.
+    # Dedup: (filePath, lineNumber, detectedPrimitive) — AST wins over regex,
+    # and among equals the finding carrying the most evidence wins.
     best: dict[tuple[str, int, str], RawFinding] = {}
+
+    def _rank(f: RawFinding) -> tuple:
+        evidence = sum(
+            1 for value in (f.keySizeBits, f.mode, f.certificateFacts, f.protocol)
+            if value
+        )
+        return (1 if f.detectionTier == "ast" else 0, evidence, f.confidence)
+
     for f in confirmed:
         key = (f.filePath, f.lineNumber, f.detectedPrimitive)
         cur = best.get(key)
-        if cur is None or f.detectionTier == "ast" or f.confidence > cur.confidence:
+        if cur is None or _rank(f) > _rank(cur):
             best[key] = f
-    return list(best.values())
+
+    # Collapse a base primitive and its key-size variant on the same line,
+    # e.g. "RSA" and "RSA-2048" produced by one `generate_private_key` call.
+    families: dict[tuple[str, int, str], list[RawFinding]] = {}
+    for f in best.values():
+        base = re.sub(r"-\d+$", "", f.detectedPrimitive)
+        families.setdefault((f.filePath, f.lineNumber, base), []).append(f)
+
+    collapsed: list[RawFinding] = []
+    for group in families.values():
+        base = re.sub(r"-\d+$", "", group[0].detectedPrimitive)
+        collapsed.append(max(group, key=lambda f: (
+            1 if f.keySizeBits else 0,
+            1 if f.detectedPrimitive == base else 0,
+            *_rank(f),
+        )))
+    return collapsed

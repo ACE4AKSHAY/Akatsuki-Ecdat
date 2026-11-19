@@ -3,3 +3,5 @@
 label = "MD5"
 md5_string_literal = "this mentions MD5 in a comment"
 print("hash the file with MD5")  # talking about MD5
+bcrypt_mention = "bcrypt.hashpw is only mentioned here"
+tls_mention = "TLSv1.2 appears only as text"
