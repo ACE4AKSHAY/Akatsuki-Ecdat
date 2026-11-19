@@ -138,11 +138,12 @@ status, usage context, exposure and shelf life against the threat timeline.
 | `GET /assets` | Filtered, paginated inventory with an optional Z slider |
 | `GET /assets/{id}` | Full asset detail, Mosca breakdown and strategy |
 | `PATCH /assets/{id}/context` | Operator context override (audited) |
-| `GET /cbom/{scan_id}` | CycloneDX-aligned document |
+| `GET /cbom/{scan_id}` | CycloneDX-aligned document, schema-valid against the official 1.6 JSON schema |
+| `GET /cbom/{scan_id}/diff` | Drift between two scans: added, removed and changed assets |
 | `GET /roadmap/{scan_id}` | Phased migration work list |
 | `GET /standards`, `GET /standards/{id}` | Policy registry and migration paths |
 | `GET /config/threat-model`, `PATCH /config/threat-model` | Timeline defaults |
-| `GET /reports/{scan_id}` | PDF, CSV, XLSX and JSON exports |
+| `GET /reports/{scan_id}` | PDF, CSV, XLSX, JSON and SARIF exports |
 | `GET /health`, `GET /health/ready` | Liveness and dependency readiness |
 
 ### M8 — Dashboard (`frontend/`)

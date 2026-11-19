@@ -8,6 +8,53 @@ All notable changes to ECDAT are recorded here. The format follows
 
 Nothing pending.
 
+## [1.3.0] - 2026-11-19
+
+The interoperability release, driven by the competitive-landscape research:
+ECDAT results now leave the tool in the formats the ecosystem speaks, the
+emitted CBOM passes the official CycloneDX schema, and the scanner runs as a
+CI step.
+
+### Added
+
+- **SARIF 2.1.0 export** (`GET /reports/{id}?format=sarif`): every assessed
+  asset as one SARIF result with tier-to-level mapping, file and line
+  locations, declared rules per migration action, and the plan in result
+  properties — ready for GitHub code scanning.
+- **Headless CI scan** (`scripts/scan_cli.py`): runs the full pipeline against
+  a throwaway database and emits `cbom.json` plus `results.sarif`, with an
+  optional `--fail-on-critical` gate. The operator's scan history is never
+  touched.
+- **Composite GitHub Action** ([action.yml](action.yml)): other repositories
+  can run ECDAT as a step and receive the CBOM and SARIF artifacts — the
+  cbomkit-action pattern, without a SonarQube server.
+- **Official-schema CBOM validation** (`backend/engine/cbom_validator.py`,
+  `scripts/validate_cbom.py`): the CycloneDX 1.6 JSON schema and its SPDX
+  dependency are vendored, and validation runs in tests and CI.
+- **CBOM drift endpoint** (`GET /cbom/{id}/diff?against={id}`): added,
+  removed and changed assets between two scans with before/after values for
+  risk tier, action, usage context and artefact type.
+- **OpenAPI contract gate**: the committed `openapi.json` is compared against
+  the generated schema in CI.
+
+### Fixed
+
+- The emitted CBOM was **not schema-valid**. The official component schema
+  forbids unknown fields and restricts the primitive and crypto-function
+  vocabularies, and ECDAT violated all three: `ecdatEnrichment` and
+  `occurrences` sat directly on components, primitives such as
+  `asymmetric_kem` and `symmetric` were non-standard, functions such as
+  `key-exchange` and `transport` were non-standard, and null OIDs were
+  emitted. The export now carries occurrences and enrichment in standard
+  namespaced `properties` (`ecdat:...`), maps primitives and functions to the
+  official enums, and omits null OIDs. `CONTRACT.md` section 2 records the
+  amendment; the internal asset model and the `/assets` API are unchanged.
+
+### Changed
+
+- Version source moved to `backend/version.py` (the API reports 1.3.0).
+- `jsonschema` added as a runtime dependency for CBOM validation.
+
 ## [1.2.0] - 2026-11-19
 
 The operational excellence release. The service can now be scraped by a
@@ -146,7 +193,8 @@ certificate discovery feeding a CycloneDX-aligned CBOM, Mosca risk scoring,
 recommendations, the React dashboard, PDF/CSV/XLSX/JSON export, the Windows
 launcher and the LAN sharing mode.
 
-[Unreleased]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/releases/tag/v1.0.0

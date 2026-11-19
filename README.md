@@ -2,9 +2,10 @@
 
 ECDAT is a local React dashboard and FastAPI pipeline for discovering cryptographic assets in source code, dependency manifests, binary evidence, infrastructure configuration, certificates and container package inventories. It normalizes findings into a CycloneDX-aligned CBOM model, estimates migration urgency with Mosca's inequality, recommends review actions and exports reports.
 
-Current release: **1.2.0**. See the [changelog](CHANGELOG.md) for what changed and
+Current release: **1.3.0**. See the [changelog](CHANGELOG.md) for what changed and
 the [architecture reference](documentation/ARCHITECTURE.md) for how the modules
-fit together.
+fit together, and the [competitive landscape note](documentation/COMPETITIVE_LANDSCAPE_AND_ROADMAP.md)
+for the upgrade roadmap.
 
 ## Start on Windows
 
@@ -173,7 +174,18 @@ ecdat.bat test
 
 Or run `.venv/bin/python scripts/launcher.py test` on macOS/Linux. The individual checks are `.venv/bin/pytest -q`, `npm test` and `npm run build` (the npm commands run in `frontend`). Pytest uses a temporary database and worker state directory. An optional `ECDAT_TEST_DATABASE_URL` must point only to dedicated test data.
 
-The update passes **186 backend tests and 27 frontend tests**, plus a production build. Capacity tests complete a 101 MiB workspace with 10,002 files, a 101 MiB ZIP upload and a 21 MiB image inventory. They also check configurable limits, cleanup and timeout handling. A contract test keeps the committed [openapi.json](openapi.json) in lockstep with the generated schema, so the API contract cannot drift silently. The [CI workflow](.github/workflows/ci.yml) runs the backend suite on Windows and Linux across Python 3.10 and 3.12, the frontend unit tests and the production build, and validates the standards registry policy data. The [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, a 21 MiB upload through the LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
+The update passes **200 backend tests and 27 frontend tests**, plus a production build. Capacity tests complete a 101 MiB workspace with 10,002 files, a 101 MiB ZIP upload and a 21 MiB image inventory. They also check configurable limits, cleanup and timeout handling. A contract test keeps the committed [openapi.json](openapi.json) in lockstep with the generated schema, and the emitted CBOM is validated against the official CycloneDX 1.6 JSON schema (vendored in the repository) in tests and CI. The [CI workflow](.github/workflows/ci.yml) runs the backend suite on Windows and Linux across Python 3.10 and 3.12, the frontend unit tests, the production build, the registry policy check and the CBOM validation. The [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, a 21 MiB upload through the LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
+
+For CI pipelines outside this repository, the composite GitHub Action ([action.yml](action.yml)) runs a headless discovery scan and uploads `cbom.json` plus `results.sarif`:
+
+```yaml
+- uses: ACE4AKSHAY/Akatsuki-Ecdat@main
+  with:
+    target: .
+    fail-on-critical: true
+```
+
+The same run is available locally: `python scripts/scan_cli.py --target demo/workspace --output work/ecdat-ci-results --fail-on-critical`. The headless scan uses a throwaway database and never touches the operator's scan history.
 
 The standards registry has its own gate: `python scripts/validate_registry.py` reports missing fields, unknown families, duplicate ids, colliding aliases and dangling migration candidates.
 

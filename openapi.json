@@ -3,7 +3,7 @@
   "info": {
     "title": "ECDAT Backend API (Module M7)",
     "description": "Enterprise Cryptographic Discovery & Analysis Tool (ECDAT) Backend API.\nCoordinates discovery scanning, Mosca quantum risk assessment, PQC recommendations, and CycloneDX 1.6 Cryptography Bill of Materials (CBOM) export.",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "paths": {
     "/scans": {
@@ -606,6 +606,58 @@
         }
       }
     },
+    "/cbom/{scan_id}/diff": {
+      "get": {
+        "tags": [
+          "CBOM"
+        ],
+        "summary": "Diff Cbom",
+        "description": "Compare two completed scans of the same estate and report crypto drift.",
+        "operationId": "diff_cbom_cbom__scan_id__diff_get",
+        "parameters": [
+          {
+            "name": "scan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scan Id"
+            }
+          },
+          {
+            "name": "against",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Scan id to compare with (the older scan)",
+              "title": "Against"
+            },
+            "description": "Scan id to compare with (the older scan)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cbom/{scan_id}": {
       "get": {
         "tags": [
@@ -674,14 +726,15 @@
                 "pdf",
                 "csv",
                 "xlsx",
-                "json"
+                "json",
+                "sarif"
               ],
               "type": "string",
-              "description": "Report format: pdf, csv, xlsx, or json",
+              "description": "Report format: pdf, csv, xlsx, json, or sarif",
               "default": "json",
               "title": "Format"
             },
-            "description": "Report format: pdf, csv, xlsx, or json"
+            "description": "Report format: pdf, csv, xlsx, json, or sarif"
           }
         ],
         "responses": {

@@ -247,10 +247,13 @@ The backend suite uses a temporary database and worker state directory.
 
 | Workflow | What it does |
 | --- | --- |
-| `.github/workflows/ci.yml` | Registry policy check, backend suite on Windows and Linux across Python 3.10 and 3.12, frontend unit tests and production build |
+| `.github/workflows/ci.yml` | Registry policy check, backend suite on Windows and Linux across Python 3.10 and 3.12, frontend unit tests and production build, and a headless scan whose CBOM is validated against the official CycloneDX 1.6 schema |
 | `.github/workflows/compatibility.yml` | Windows batch setup, launcher tests, build, LAN smoke check and log capture |
 
-Both run on pushes to `main` and `feature/**` and on pull requests.
+Both run on pushes to `main` and `feature/**` and on pull requests. Other
+repositories can run ECDAT as a CI step through the composite action in
+[action.yml](../action.yml), which produces `cbom.json` and `results.sarif`
+artifacts and can fail the job on Critical findings.
 [Dependabot](../../.github/dependabot.yml) opens weekly updates for the pip
 and npm ecosystems and monthly updates for the pinned GitHub Actions, so a
 dependency fix does not wait for a manual review cycle. A committed
