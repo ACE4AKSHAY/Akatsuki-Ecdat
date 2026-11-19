@@ -84,8 +84,9 @@ There are exactly two handoff boundaries in this project. This file defines both
 ```
 
 **Rules for B (M4/M5/M6):**
-- `bom-ref`, `type`, `name`, `cryptoProperties`, `occurrences` are the CycloneDX-standard part — don't rename these, C's M9 exports this block close to verbatim as the CBOM JSON.
-- `ecdatEnrichment` is B's own extension bag. **M5 must write `moscaX`, `moscaY`, `moscaZ`, `moscaR`, `moscaRiskTier`** into it (not just the tier — C's M8 heatmap needs the raw X/Y/Z/r values to recompute `r` client-side when the Z slider moves, per Section 7/M8's design).
+- `bom-ref`, `type`, `name`, `cryptoProperties` are the CycloneDX-standard part — don't rename these, C's M9 exports this block as the CBOM JSON.
+- **Amended (1.3.0):** the exported CBOM document must validate against the official CycloneDX 1.6 JSON schema, whose component definition forbids unknown fields. The exported document therefore carries `occurrences` as `ecdat:occurrence` properties and the whole `ecdatEnrichment` bag as flat `ecdat:<field>` properties (objects and lists embedded as JSON strings). The internal asset model — `asset_json`, the `/assets` API and everything M8 reads — keeps the flat `ecdatEnrichment` bag unchanged; only the interchange export maps into the namespace.
+- `ecdatEnrichment` is B's own extension bag on the internal model. **M5 must write `moscaX`, `moscaY`, `moscaZ`, `moscaR`, `moscaRiskTier`** into it (not just the tier — C's M8 heatmap needs the raw X/Y/Z/r values to recompute `r` client-side when the Z slider moves, per Section 7/M8's design).
 - `moscaRiskTier` is one of `"Critical" | "High" | "Medium" | "Low"` — exact casing, C's frontend will likely switch/color on this string directly.
 - M6 must write `recommendedReplacement` and `referenceStandard` into the same `ecdatEnrichment` block — don't create a separate object for it, C expects one flat enrichment bag per asset.
 - Output a **list** of these objects (one CBOM document = array of assets), even if empty.

@@ -248,5 +248,9 @@ def test_m9_cyclonedx_json_structure():
         assert "bom-ref" in comp
         assert comp["type"] == "cryptographic-asset"
         assert "cryptoProperties" in comp
-        assert "ecdatEnrichment" in comp
-        assert comp["ecdatEnrichment"]["moscaRiskTier"] in ["Critical", "High", "Medium", "Low"]
+        property_names = {prop["name"] for prop in comp.get("properties", [])}
+        assert any(name.startswith("ecdat:") for name in property_names)
+        tier_values = {
+            prop["value"] for prop in comp["properties"] if prop["name"] == "ecdat:moscaRiskTier"
+        }
+        assert tier_values and tier_values <= {"Critical", "High", "Medium", "Low"}

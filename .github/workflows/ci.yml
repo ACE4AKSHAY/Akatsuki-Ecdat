@@ -54,6 +54,10 @@ jobs:
         run: python -m pytest -q
       - name: Validate standards registry
         run: python scripts/validate_registry.py
+      - name: Validate emitted CBOM against the official CycloneDX schema
+        run: |
+          python scripts/scan_cli.py --target demo/workspace --output work/ci-cbom-check
+          python scripts/validate_cbom.py work/ci-cbom-check/cbom.json
 
   frontend:
     name: Frontend

@@ -3,6 +3,7 @@ M4: CBOM Aggregation & Normalization Engine
 Deduplicates raw findings, canonicalizes algorithm names/OIDs,
 enriches with business context, and builds CycloneDX 1.6 CBOM components.
 """
+import json
 import uuid
 from typing import List, Dict, Any, Optional
 from backend.models.schemas import (
@@ -350,11 +351,100 @@ def _link_referenced_certificates(assets: List[CanonicalCBOMAsset]) -> None:
 
 
 def build_cyclonedx_document(scan_id: str, assets: List[CanonicalCBOMAsset]) -> CycloneDXDocument:
-    """Wraps canonical assets into a CycloneDX 1.6 document."""
+    """Wraps canonical assets into a schema-valid CycloneDX 1.6 CBOM document.
+
+    The CycloneDX component schema forbids unknown properties, so the
+    internal `ecdatEnrichment` bag and `occurrences` list are carried in
+    standard `properties` name/value pairs under the `ecdat:` namespace, and
+    internal primitive/function vocabulary is mapped to the official enums.
+    """
     return CycloneDXDocument(
         bomFormat="CycloneDX",
         specVersion="1.6",
         serialNumber=f"urn:uuid:{uuid.uuid4()}",
         version=1,
-        components=assets,
+        components=[to_schema_component(asset) for asset in assets],
     )
+
+
+# Internal primitive category -> official CycloneDX primitive enum.
+_PRIMITIVE_MAP = {
+    "asymmetric_kem": "kem",
+    "asymmetric_sig": "signature",
+    "symmetric": "block-cipher",
+    "hash": "hash",
+    "mac": "mac",
+    "kdf": "kdf",
+    "protocol": "unknown",
+    "cert": "unknown",
+    "algorithm": "unknown",
+}
+
+# Internal crypto-function vocabulary -> official CycloneDX function enum.
+_FUNCTION_MAP = {
+    "digest": "digest",
+    "encrypt": "encrypt",
+    "decrypt": "decrypt",
+    "sign": "sign",
+    "signature": "sign",
+    "verify": "verify",
+    "authenticate": "tag",
+    "key-derivation": "keyderive",
+    "key-exchange": "other",
+    "transport": "other",
+}
+
+
+def _flatten_properties(prefix: str, value: Any) -> list[dict]:
+    """Flatten an enrichment value into standard name/value properties.
+
+    Scalars keep their key; lists and objects are embedded as JSON strings
+    because CycloneDX properties carry string values only.
+    """
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return [{"name": f"ecdat:{prefix}", "value": "" if value is None else str(value)}]
+    return [{"name": f"ecdat:{prefix}", "value": json.dumps(value)}]
+
+
+def to_schema_component(asset: CanonicalCBOMAsset) -> Dict[str, Any]:
+    """Render a canonical asset as a schema-valid CycloneDX component."""
+    crypto = asset.cryptoProperties
+    properties: list[dict] = [
+        {
+            "name": "ecdat:occurrence",
+            "value": f"{occurrence.location}:{occurrence.line}" if occurrence.line else occurrence.location,
+        }
+        for occurrence in asset.occurrences
+    ]
+    enrichment = asset.ecdatEnrichment.model_dump(by_alias=True, exclude_none=True)
+    for key, value in sorted(enrichment.items()):
+        properties.extend(_flatten_properties(key, value))
+
+    component: Dict[str, Any] = {
+        "type": asset.type,
+        "bom-ref": asset.bom_ref,
+        "name": asset.name,
+        "properties": properties,
+    }
+
+    if crypto.assetType == "algorithm":
+        algorithm = crypto.algorithmProperties
+        component["cryptoProperties"] = {
+            "assetType": "algorithm",
+            "algorithmProperties": {
+                "primitive": _PRIMITIVE_MAP.get(algorithm.primitive, "unknown"),
+                "parameterSetIdentifier": algorithm.parameterSetIdentifier,
+                "executionEnvironment": algorithm.executionEnvironment,
+                "implementationPlatform": algorithm.implementationPlatform,
+                "cryptoFunctions": [
+                    _FUNCTION_MAP.get(function, "other")
+                    for function in (algorithm.cryptoFunctions or [])
+                ],
+                "classicalSecurityLevel": algorithm.classicalSecurityLevel,
+                "nistQuantumSecurityLevel": algorithm.nistQuantumSecurityLevel,
+            },
+            **({"oid": crypto.oid} if crypto.oid else {}),
+        }
+    else:
+        component["cryptoProperties"] = {"assetType": crypto.assetType}
+    return component

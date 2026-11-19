@@ -143,4 +143,6 @@ def test_cyclonedx_document_generation():
     assert doc.specVersion == "1.6"
     assert doc.version == 1
     assert len(doc.components) == 1
-    assert doc.components[0].bom_ref == "crypto-asset-0af3e9"
+    assert doc.components[0]["bom-ref"] == "crypto-asset-0af3e9"
+    property_names = {prop["name"] for prop in doc.components[0]["properties"]}
+    assert "ecdat:moscaRiskTier" in property_names

@@ -133,7 +133,9 @@ class CycloneDXDocument(BaseModel):
     specVersion: str = "1.6"
     serialNumber: str
     version: int = 1
-    components: List[CanonicalCBOMAsset] = Field(default_factory=list)
+    # Schema-valid component dictionaries produced by to_schema_component;
+    # raw CanonicalCBOMAsset instances would carry non-standard fields.
+    components: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 # ==============================================================================
