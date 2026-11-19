@@ -4,11 +4,13 @@ Supports filtering and dynamic Z-slider re-scoring for interactive heatmap simul
 """
 import json
 import math
+import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models.db_models import Asset, Recommendation
+from backend.models.db_models import Asset, AuditEvent, Recommendation
 from backend.models.schemas import (
     AssetSummaryResponse,
     AssetDetailResponse,
@@ -121,9 +123,57 @@ def list_assets(
     if hndlTier:
         query = query.filter(Asset.hndl_tier == hndlTier)
 
+    start_idx = (page - 1) * pageSize
+
+    if z is None:
+        # Stored tiers are used as-is, so filtering, counting and paging all
+        # happen in the database instead of loading every row into memory.
+        tier_counts = {
+            tier: count
+            for tier, count in query.with_entities(Asset.risk_tier, func.count())
+            .group_by(Asset.risk_tier)
+            .all()
+        }
+        crit_count = tier_counts.get("Critical", 0)
+        high_count = tier_counts.get("High", 0)
+        med_count = tier_counts.get("Medium", 0)
+        low_count = tier_counts.get("Low", 0)
+
+        if riskTier:
+            query = query.filter(func.lower(Asset.risk_tier) == riskTier.lower())
+
+        total_items = query.count()
+        rows = query.offset(start_idx).limit(pageSize).all()
+        paged_items = []
+        for db_asset in rows:
+            try:
+                paged_items.append(
+                    CanonicalCBOMAsset.model_validate(json.loads(db_asset.asset_json))
+                )
+            except Exception:
+                continue
+
+        z_used = 8.0
+        first_row = db.query(Asset).filter(Asset.scan_id == scanId).first() if scanId else None
+        if first_row:
+            z_used = first_row.threat_timeline_z
+
+        return AssetSummaryResponse(
+            items=paged_items,
+            total=total_items,
+            page=page,
+            pageSize=pageSize,
+            pages=math.ceil(total_items / pageSize) if total_items > 0 else 1,
+            zUsed=z_used,
+            criticalCount=crit_count,
+            highCount=high_count,
+            mediumCount=med_count,
+            lowCount=low_count,
+        )
+
     all_matching_db_assets = query.all()
 
-    # Recompute risk tier if Z slider is active, or use stored tier
+    # Recompute risk tier for the interactive threat-timeline slider.
     parsed_assets = []
     crit_count = 0
     high_count = 0
@@ -258,6 +308,7 @@ def get_asset_detail(asset_id: str, db: Session = Depends(get_db)):
 def update_asset_context(
     asset_id: str,
     payload: AssetContextUpdateRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Let an operator confirm the use context and re-plan the migration."""
@@ -270,6 +321,13 @@ def update_asset_context(
     asset_dict = json.loads(db_asset.asset_json)
     enrichment = dict(asset_dict.get("ecdatEnrichment", {}))
     primitive_category = db_asset.primitive_category or enrichment.get("artifactType", "algorithm")
+    before = {
+        "usageContext": enrichment.get("usageContext"),
+        "artifactType": enrichment.get("artifactType"),
+        "complianceTarget": enrichment.get("complianceTarget"),
+        "migrationAction": enrichment.get("migrationAction"),
+        "migrationPhase": enrichment.get("migrationPhase"),
+    }
 
     usage_context = payload.usageContext or enrichment.get("usageContext") or "unknown"
     artifact_type = payload.artifactType or enrichment.get("artifactType") or infer_artifact_type(
@@ -335,6 +393,25 @@ def update_asset_context(
         rec.playbook_json = json.dumps(strategy["playbook"])
         rec.blockers_json = json.dumps(strategy["blockers"])
         rec.assumptions_json = json.dumps(strategy["assumptions"])
+
+    after = {
+        "usageContext": usage_context,
+        "artifactType": artifact_type,
+        "complianceTarget": compliance_target,
+        "migrationAction": strategy["action"],
+        "migrationPhase": strategy["phase"],
+    }
+    db.add(AuditEvent(
+        id=uuid.uuid4().hex,
+        scan_id=db_asset.scan_id,
+        asset_id=db_asset.id,
+        asset_ref=db_asset.bom_ref,
+        actor=payload.operator or request.headers.get("X-Operator"),
+        action="asset-context-override",
+        request_id=getattr(request.state, "request_id", None),
+        before_json=json.dumps(before),
+        after_json=json.dumps(after),
+    ))
     db.commit()
 
     return get_asset_detail(asset_id, db)

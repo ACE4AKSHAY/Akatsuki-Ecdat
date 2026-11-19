@@ -11,12 +11,24 @@ def generate_recommendation(
     compliance_target: str = "NIST-general",
     latency_sensitive: bool = False,
     is_firmware: bool = False,
+    mode: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generates migration recommendation based on Section 10 mapping table.
     """
     clean_name = name.upper().replace("_", "-").strip()
     is_cnsa2 = compliance_target == "CNSA2.0"
+
+    # 0. ECB mode: the cipher is sound, the construction is not.
+    if (mode or "").upper() == "ECB":
+        return {
+            "recommendedReplacement": "AES-256-GCM or ChaCha20-Poly1305",
+            "mode": "AEAD reconfiguration",
+            "complexity": "Medium",
+            "rationale": "ECB leaks plaintext structure regardless of key length; move the cipher to an AEAD mode.",
+            "referenceStandard": "NIST SP 800-38D",
+            "relativeSizeDelta": "Adds a 12-16 byte authentication tag per record",
+        }
 
     # 1. Broken classical hashes
     if any(h in clean_name for h in ["MD5", "SHA1", "SHA-1"]):
@@ -55,6 +67,10 @@ def generate_recommendation(
         return {"recommendedReplacement": "No change needed", "mode": "retain", "complexity": "Low",
                 "rationale": "No algorithm replacement identified by the current rules; validate usage and configuration.",
                 "referenceStandard": "Review applicable algorithm standard"}
+    if clean_name == "AES":
+        return {"recommendedReplacement": "AES-256-GCM", "mode": "AEAD adoption", "complexity": "Medium",
+                "rationale": "The key size is unknown; adopt a 256-bit AEAD so the mode and the key length are both reviewable.",
+                "referenceStandard": "NIST SP 800-38D"}
     if primitive_category == "protocol":
         return {"recommendedReplacement": "TLS 1.3 with reviewed cipher configuration", "mode": "protocol review", "complexity": "Medium",
                 "rationale": "Review protocol support and negotiated algorithms before selecting a key establishment scheme.",

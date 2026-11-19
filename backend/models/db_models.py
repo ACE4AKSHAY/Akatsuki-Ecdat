@@ -119,3 +119,19 @@ class ScanJob(Base):
     __tablename__ = 'scan_jobs'
     scan_id = Column(String(64), ForeignKey('scans.id'), primary_key=True)
     options_json = Column(Text, nullable=False)
+
+
+class AuditEvent(Base):
+    """Immutable trail of operator overrides applied to an assessed asset."""
+    __tablename__ = "audit_events"
+
+    id = Column(String(64), primary_key=True, index=True)
+    scan_id = Column(String(64), nullable=True, index=True)
+    asset_id = Column(String(64), nullable=True, index=True)
+    asset_ref = Column(String(64), nullable=True)
+    actor = Column(String(128), nullable=True)
+    action = Column(String(64), nullable=False)
+    request_id = Column(String(64), nullable=True)
+    before_json = Column(Text, nullable=True)
+    after_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

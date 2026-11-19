@@ -136,6 +136,30 @@ def test_normalizer_populates_assessment_and_strategy():
     assert rsa.ecdatEnrichment.readinessTier in {"Ready", "Partial", "Blocked", "Unknown"}
 
 
+def test_ecb_usage_is_reconfigured_to_an_aead():
+    """ECB is a mode fault: the cipher stays, the construction changes."""
+    from backend.engine.recommend import generate_recommendation
+    from backend.engine.strategy import build_migration_strategy
+
+    strategy = build_migration_strategy(
+        name="AES-128",
+        primitive_category="symmetric-cipher",
+        usage_context="encryption",
+        artifact_type="algorithm",
+        classical_status="deprecated",
+        quantum_status="weakened",
+        mode="ECB",
+    )
+    assert strategy["action"] == "reconfigure"
+    assert strategy["phase"] == "immediate"
+    assert strategy["selectedCandidate"] == "AES-256-GCM"
+    assert strategy["playbook"]
+
+    headline = generate_recommendation("AES-128", "symmetric", mode="ECB")
+    assert headline["recommendedReplacement"] == "AES-256-GCM or ChaCha20-Poly1305"
+    assert headline["mode"] == "AEAD reconfiguration"
+
+
 def test_certificate_findings_carry_x509_facts():
     findings = scan_certificates(ROOT / "seed_corpus" / "certs", "evidence")
     assert findings

@@ -183,6 +183,7 @@ def normalize_findings(
                 primitive_category=f.primitiveCategory or prim_cat,
                 compliance_target=compliance_target,
                 is_firmware=is_firmware,
+                mode=f.mode,
             )
 
             # Context, classification, HNDL, readiness and the migration strategy

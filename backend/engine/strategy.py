@@ -149,7 +149,22 @@ def build_migration_strategy(
                 target_label = hybrid["label"]
                 target_maturity = hybrid["maturity"]
 
-    # 4. Classically broken or deprecated primitives take precedence.
+    # 4. ECB is a mode fault, not an algorithm fault: the cipher stays, the
+    #    construction changes to an AEAD.
+    elif (mode or "").upper() == "ECB":
+        candidates = candidates_for_path("legacy-symmetric", compliance_target)
+        selected = _pick(candidates, compliance_target)
+        action = "reconfigure"
+        phase = "immediate"
+        template_id = "legacy-symmetric"
+        target_label = selected["label"] if selected else "AES-256-GCM"
+        target_maturity = selected["maturity"] if selected else "final"
+        rationale = (
+            "ECB leaks plaintext structure regardless of key length; move the cipher to an AEAD mode "
+            "before considering any algorithm change."
+        )
+
+    # 5. Classically broken or deprecated primitives take precedence.
     elif classical_status == "broken" and entry_id in _BROKEN_SYMMETRIC:
         candidates = candidates_for_path("legacy-symmetric", compliance_target)
         selected = _pick(candidates, compliance_target)
@@ -180,7 +195,7 @@ def build_migration_strategy(
         target_maturity = selected["maturity"] if selected else "final"
         rationale = "Collision resistance is broken; replace the digest in every collision-sensitive use."
 
-    # 5. Quantum-vulnerable key establishment.
+    # 6. Quantum-vulnerable key establishment.
     elif usage_context == "key-establishment" and quantum_status == "vulnerable":
         candidates = candidates_for_path("key-establishment", compliance_target)
         selected = _pick(candidates, compliance_target)
@@ -196,7 +211,7 @@ def build_migration_strategy(
         if latency_sensitive:
             assumptions.append("Latency sensitivity favours the smaller parameter set where security policy allows.")
 
-    # 6. Quantum-vulnerable signatures.
+    # 7. Quantum-vulnerable signatures.
     elif usage_context in {"signing", "token-signing", "firmware-signing"} and quantum_status == "vulnerable":
         path_id = "firmware-signature" if (is_firmware or usage_context == "firmware-signing") else "signature"
         candidates = candidates_for_path(path_id, compliance_target)
@@ -210,7 +225,7 @@ def build_migration_strategy(
         if selected and selected["id"] == "lms-xmss":
             assumptions.append("LMS/XMSS are stateful; the signing service must guarantee one-time key state.")
 
-    # 7. AES-128 or other weakened symmetric primitives.
+    # 8. AES-128 or other weakened symmetric primitives.
     elif quantum_status == "weakened" and entry_id in {"aes-128", "sha-256", "sha3-256"}:
         path_id = "symmetric-strength" if entry_id == "aes-128" else "hash-integrity"
         candidates = candidates_for_path(path_id, compliance_target)
@@ -226,7 +241,7 @@ def build_migration_strategy(
             else "The digest is acceptable for its role; monitor the configuration and data lifetime."
         )
 
-    # 8. Strong assets are retained.
+    # 9. Strong assets are retained.
     elif classical_status in {"strong", "acceptable"} and quantum_status in {"resistant", "weakened"}:
         action = "retain" if quantum_status == "resistant" else "monitor"
         template_id = "retain"
@@ -235,7 +250,7 @@ def build_migration_strategy(
         target_maturity = "final"
         rationale = "No cryptographic replacement is identified; validate usage and configuration."
 
-    # 9. Unknown or ambiguous evidence.
+    # 10. Unknown or ambiguous evidence.
     else:
         action = "manual-review"
         template_id = "review"

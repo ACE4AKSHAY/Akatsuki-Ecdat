@@ -194,6 +194,9 @@ class AssetContextUpdateRequest(BaseModel):
     ]] = None
     complianceTarget: Optional[Literal["NIST-general", "CNSA2.0"]] = None
     protocol: Optional[str] = None
+    operator: Optional[str] = Field(
+        None, max_length=128, description="Who applied the override; recorded in the audit trail"
+    )
 
 
 class ThreatModelUpdateRequest(BaseModel):

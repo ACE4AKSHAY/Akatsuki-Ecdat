@@ -29,6 +29,9 @@ ENV/
 *.db
 *.sqlite3
 ecdat.db
+*.db-shm
+*.db-wal
+*.db-journal
 
 # Pytest & Coverage
 .pytest_cache/
