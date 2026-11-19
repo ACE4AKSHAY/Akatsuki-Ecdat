@@ -88,7 +88,10 @@ def test_snapshot_excludes_dependencies_and_links(tmp_path, monkeypatch):
     root=tmp_path/'source';root.mkdir()
     (root/'app.py').write_text('import hashlib')
     (root/'node_modules').mkdir();(root/'node_modules'/'dependency.js').write_text('fixture')
-    (root/'linked.py').symlink_to(root/'app.py')
+    try:
+        (root/'linked.py').symlink_to(root/'app.py')
+    except OSError as exc:
+        pytest.skip(f'symlinks unavailable on this host: {exc}')
     monkeypatch.setenv('ECDAT_STATE_DIR',str(tmp_path/'state'))
     with prepared_target('path',str(root)) as snapshot:
         assert sorted(p.name for p in snapshot.iterdir()) == ['app.py']

@@ -48,6 +48,8 @@ _ACTION_BY_FAMILY = {
     "protocol": "reconfigure",
     "certificate": "reissue-certificate",
     "mac": "retain",
+    "hash": "monitor",
+    "asymmetric": "hybridize",
 }
 
 
@@ -247,3 +249,82 @@ def registry_summary() -> Dict[str, Any]:
 
 def iter_entries() -> Iterable[Dict[str, Any]]:
     return iter(get_registry()["entries"])
+
+
+_REQUIRED_ENTRY_FIELDS = (
+    "id",
+    "displayName",
+    "family",
+    "standard",
+    "status",
+    "classicalStatus",
+    "quantumStatus",
+    "defaultAction",
+    "useCases",
+)
+
+_KNOWN_FITS = {
+    "preferred",
+    "transition",
+    "acceptable-alternative",
+    "alternative",
+    "tracked-future",
+    "cnsa-preferred",
+}
+
+
+def validate_registry() -> List[str]:
+    """Return the list of policy-data problems; empty means the registry is sound.
+
+    The registry is reviewed by humans, so CI checks its shape rather than
+    its content: a dangling candidate reference or a missing field would
+    silently degrade the recommendations.
+    """
+    registry = get_registry()
+    problems: List[str] = []
+
+    if not registry.get("registryVersion"):
+        problems.append("registryVersion is missing")
+    if not registry.get("reviewedOn"):
+        problems.append("reviewedOn is missing")
+
+    entries = registry.get("entries", [])
+    entry_ids = {entry.get("id") for entry in entries}
+    if len(entry_ids) != len(entries):
+        problems.append("duplicate entry ids")
+
+    alias_owner: Dict[str, str] = {}
+    for entry in entries:
+        entry_id = entry.get("id", "<missing id>")
+        for field in _REQUIRED_ENTRY_FIELDS:
+            if field not in entry:
+                problems.append(f"{entry_id}: missing '{field}'")
+        if entry.get("family") and entry["family"] not in _ACTION_BY_FAMILY:
+            problems.append(f"{entry_id}: unknown family '{entry['family']}'")
+        if entry.get("defaultAction") and entry["defaultAction"] not in {
+            "retain", "monitor", "replace", "hybridize", "deprecate", "rotate",
+            "reissue-certificate", "upgrade-library", "reconfigure", "manual-review",
+        }:
+            problems.append(f"{entry_id}: unknown defaultAction '{entry['defaultAction']}'")
+        for alias in entry.get("aliases", []):
+            key = alias.upper()
+            if key in alias_owner and alias_owner[key] != entry_id:
+                problems.append(
+                    f"alias '{alias}' is claimed by both {alias_owner[key]} and {entry_id}"
+                )
+            alias_owner[key] = entry_id
+
+    for path in registry.get("migrationPaths", []):
+        path_id = path.get("id", "<missing id>")
+        if not path.get("roles"):
+            problems.append(f"{path_id}: no roles declared")
+        for candidate in path.get("candidates", []):
+            if candidate.get("entryId") not in entry_ids:
+                problems.append(
+                    f"{path_id}: candidate '{candidate.get('entryId')}' is not a registry entry"
+                )
+            fit = candidate.get("fit", "preferred")
+            if fit not in _KNOWN_FITS:
+                problems.append(f"{path_id}: unknown candidate fit '{fit}'")
+
+    return problems

@@ -1,5 +1,5 @@
 {
-  "registryVersion": "2026.11.2",
+  "registryVersion": "2026.11.3",
   "reviewedOn": "2026-11-19",
   "description": "Versioned cryptographic standards and migration policy registry. Every recommendation points at an entry here so policy is reviewable without changing application logic.",
   "entries": [
@@ -728,8 +728,8 @@
       "aliases": [
         "ECDH",
         "ECDHE",
-        "P-256",
-        "SECP256R1"
+        "ECDH-P-256",
+        "ECDH-SECP256R1"
       ],
       "family": "asymmetric",
       "standard": "NIST SP 800-56A",
