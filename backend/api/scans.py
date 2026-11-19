@@ -4,13 +4,14 @@ Scan lifecycle API routes: POST /scans, GET /scans/{id}, GET /scans
 import uuid
 from backend.ingestion import validate_input, state_dir
 from backend.input_limits import MIB, get_input_limits
+from backend.models.db_models import AuditEvent
 from pathlib import Path
 import json
 import shutil
 from fastapi import UploadFile, File, Form, Query
 from datetime import datetime
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models.db_models import Scan, ScanJob
@@ -19,11 +20,18 @@ from backend.models.schemas import ScanCreate, ScanResponse
 router = APIRouter(prefix="/scans", tags=["Scans"])
 
 
-def remove_history(scans: list[Scan], db: Session):
+def remove_history(scans: list[Scan], db: Session, actor: str | None = None):
     if any(scan.status in ('queued', 'running') for scan in scans):
         raise HTTPException(409, 'Wait for queued or running scans to finish before deleting their history.')
     for scan in scans:
         db.query(ScanJob).filter(ScanJob.scan_id == scan.id).delete(synchronize_session=False)
+        db.add(AuditEvent(
+            id=uuid.uuid4().hex,
+            scan_id=scan.id,
+            actor=actor,
+            action='scan-deleted',
+            before_json=json.dumps({'target': scan.target, 'assetCount': scan.asset_count, 'status': scan.status}),
+        ))
         # ORM cascades remove the assets and their recommendations together.
         db.delete(scan)
     db.commit()
@@ -31,18 +39,18 @@ def remove_history(scans: list[Scan], db: Session):
 
 
 @router.delete('')
-def delete_all_scans(db: Session = Depends(get_db)):
+def delete_all_scans(request: Request, db: Session = Depends(get_db)):
     """Remove all saved history; reject the whole action while any scan is active."""
-    return remove_history(db.query(Scan).all(), db)
+    return remove_history(db.query(Scan).all(), db, actor=request.headers.get('X-Operator'))
 
 
 @router.delete('/{scan_id}')
-def delete_scan(scan_id: str, db: Session = Depends(get_db)):
+def delete_scan(scan_id: str, request: Request, db: Session = Depends(get_db)):
     """Remove a finished scan and its saved results. Input files are retained."""
     scan = db.get(Scan, scan_id)
     if scan is None:
         raise HTTPException(404, f"Scan '{scan_id}' not found")
-    return remove_history([scan], db)
+    return remove_history([scan], db, actor=request.headers.get('X-Operator'))
 
 
 @router.post("", response_model=ScanResponse, status_code=202)

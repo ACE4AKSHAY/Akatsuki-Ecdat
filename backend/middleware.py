@@ -9,10 +9,16 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from backend.logging_config import set_request_id
+from backend.metrics import record_request
 
 log = logging.getLogger("ecdat.access")
 
 REQUEST_ID_HEADER = "X-Request-ID"
+
+
+def _record(request: Request, status: int, duration_seconds: float) -> None:
+    route = getattr(request.scope.get("route"), "path", None) or request.url.path
+    record_request(route, request.method, status, duration_seconds)
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -37,6 +43,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
         except Exception:
+            _record(request, 500, time.perf_counter() - started)
             duration_ms = round((time.perf_counter() - started) * 1000, 2)
             log.exception(
                 "request failed",
@@ -50,6 +57,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             raise
 
         duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        _record(request, response.status_code, time.perf_counter() - started)
         response.headers[REQUEST_ID_HEADER] = request_id
         for header, value in SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)

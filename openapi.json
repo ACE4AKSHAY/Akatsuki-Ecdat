@@ -3,7 +3,7 @@
   "info": {
     "title": "ECDAT Backend API (Module M7)",
     "description": "Enterprise Cryptographic Discovery & Analysis Tool (ECDAT) Backend API.\nCoordinates discovery scanning, Mosca quantum risk assessment, PQC recommendations, and CycloneDX 1.6 Cryptography Bill of Materials (CBOM) export.",
-    "version": "1.0.0"
+    "version": "1.2.0"
   },
   "paths": {
     "/scans": {
@@ -349,6 +349,96 @@
             "description": "Filter by algorithm name (e.g. SHA-1, RSA-2048)"
           },
           {
+            "name": "usageContext",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by inferred use (signing, transport, password-storage…)",
+              "title": "Usagecontext"
+            },
+            "description": "Filter by inferred use (signing, transport, password-storage…)"
+          },
+          {
+            "name": "artifactType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by artifact type (algorithm, certificate, protocol…)",
+              "title": "Artifacttype"
+            },
+            "description": "Filter by artifact type (algorithm, certificate, protocol…)"
+          },
+          {
+            "name": "migrationAction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by selected action (replace, hybridize, retain…)",
+              "title": "Migrationaction"
+            },
+            "description": "Filter by selected action (replace, hybridize, retain…)"
+          },
+          {
+            "name": "readinessTier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by migration readiness tier",
+              "title": "Readinesstier"
+            },
+            "description": "Filter by migration readiness tier"
+          },
+          {
+            "name": "hndlTier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by HNDL exposure tier",
+              "title": "Hndltier"
+            },
+            "description": "Filter by HNDL exposure tier"
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -439,6 +529,59 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assets/{asset_id}/context": {
+      "patch": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Update Asset Context",
+        "description": "Let an operator confirm the use context and re-plan the migration.",
+        "operationId": "update_asset_context_assets__asset_id__context_patch",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetContextUpdateRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -621,13 +764,209 @@
         }
       }
     },
+    "/standards": {
+      "get": {
+        "tags": [
+          "Standards"
+        ],
+        "summary": "List Standards",
+        "operationId": "list_standards_standards_get",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return candidates for a migration path",
+              "title": "Path"
+            },
+            "description": "Return candidates for a migration path"
+          },
+          {
+            "name": "family",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter entries by family",
+              "title": "Family"
+            },
+            "description": "Filter entries by family"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter entries by standards maturity",
+              "title": "Status"
+            },
+            "description": "Filter entries by standards maturity"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Free-text search over names, aliases and standards",
+              "title": "Q"
+            },
+            "description": "Free-text search over names, aliases and standards"
+          },
+          {
+            "name": "complianceTarget",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "NIST-general or CNSA2.0",
+              "default": "NIST-general",
+              "title": "Compliancetarget"
+            },
+            "description": "NIST-general or CNSA2.0"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/standards/{entry_id}": {
+      "get": {
+        "tags": [
+          "Standards"
+        ],
+        "summary": "Get Standard",
+        "operationId": "get_standard_standards__entry_id__get",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roadmap/{scan_id}": {
+      "get": {
+        "tags": [
+          "Roadmap"
+        ],
+        "summary": "Get Roadmap",
+        "description": "Group a scan's assets into phased, ordered migration work.",
+        "operationId": "get_roadmap_roadmap__scan_id__get",
+        "parameters": [
+          {
+            "name": "scan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
           "System"
         ],
         "summary": "Health Check",
-        "description": "Health check endpoint.",
+        "description": "Liveness probe — the process is up and serving requests.",
         "operationId": "health_check_health_get",
         "responses": {
           "200": {
@@ -635,6 +974,48 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Readiness Check",
+        "description": "Readiness probe — dependencies the API needs are reachable and loaded.",
+        "operationId": "readiness_check_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Metrics Endpoint",
+        "description": "Prometheus-format metrics. Token-protected like every other data route.",
+        "operationId": "metrics_endpoint_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
               }
             }
           }
@@ -728,6 +1109,97 @@
         ],
         "title": "AlgorithmProperties"
       },
+      "AssetContextUpdateRequest": {
+        "properties": {
+          "usageContext": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "encryption",
+                  "signing",
+                  "token-signing",
+                  "firmware-signing",
+                  "hashing",
+                  "integrity",
+                  "password-storage",
+                  "key-establishment",
+                  "transport",
+                  "key-management",
+                  "certificate",
+                  "data-protection",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usagecontext"
+          },
+          "artifactType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "algorithm",
+                  "certificate",
+                  "protocol",
+                  "library",
+                  "hardware-module",
+                  "cloud-service",
+                  "key-reference"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifacttype"
+          },
+          "complianceTarget": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "NIST-general",
+                  "CNSA2.0"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compliancetarget"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator",
+            "description": "Who applied the override; recorded in the audit trail"
+          }
+        },
+        "type": "object",
+        "title": "AssetContextUpdateRequest"
+      },
       "AssetDetailResponse": {
         "properties": {
           "asset": {
@@ -742,6 +1214,24 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Recommendation"
+          },
+          "assessment": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Assessment"
+          },
+          "strategy": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Strategy"
+          },
+          "relationships": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Relationships"
           }
         },
         "type": "object",
@@ -1034,6 +1524,169 @@
               }
             ],
             "title": "Relativesizedelta"
+          },
+          "usageContext": {
+            "type": "string",
+            "title": "Usagecontext",
+            "default": "unknown"
+          },
+          "contextConfidence": {
+            "type": "number",
+            "title": "Contextconfidence",
+            "default": 0.0
+          },
+          "artifactType": {
+            "type": "string",
+            "title": "Artifacttype",
+            "default": "algorithm"
+          },
+          "classicalStatus": {
+            "type": "string",
+            "title": "Classicalstatus",
+            "default": "unknown"
+          },
+          "quantumStatus": {
+            "type": "string",
+            "title": "Quantumstatus",
+            "default": "unknown"
+          },
+          "standardsMaturity": {
+            "type": "string",
+            "title": "Standardsmaturity",
+            "default": "not-applicable"
+          },
+          "migrationAction": {
+            "type": "string",
+            "title": "Migrationaction",
+            "default": "manual-review"
+          },
+          "migrationPhase": {
+            "type": "string",
+            "title": "Migrationphase",
+            "default": "monitor"
+          },
+          "complianceTarget": {
+            "type": "string",
+            "title": "Compliancetarget",
+            "default": "NIST-general"
+          },
+          "hndlApplicable": {
+            "type": "boolean",
+            "title": "Hndlapplicable",
+            "default": false
+          },
+          "hndlTier": {
+            "type": "string",
+            "title": "Hndltier",
+            "default": "Unknown"
+          },
+          "hndlScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hndlscore"
+          },
+          "hndlExplanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hndlexplanation"
+          },
+          "readinessScore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readinessscore"
+          },
+          "readinessTier": {
+            "type": "string",
+            "title": "Readinesstier",
+            "default": "Unknown"
+          },
+          "readinessComponents": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Readinesscomponents"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blockers"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "candidates": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "playbook": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Playbook"
+          },
+          "strategyRationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategyrationale"
+          },
+          "certificateFacts": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificatefacts"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evidence"
+          },
+          "relatedAssetRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Relatedassetrefs"
           }
         },
         "type": "object",

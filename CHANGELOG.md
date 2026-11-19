@@ -8,6 +8,49 @@ All notable changes to ECDAT are recorded here. The format follows
 
 Nothing pending.
 
+## [1.2.0] - 2026-11-19
+
+The operational excellence release. The service can now be scraped by a
+monitoring stack, throttled when exposed beyond a single operator, audited
+across its whole lifecycle and backed up with one command.
+
+### Added
+
+- **Metrics endpoint** (`GET /metrics`, Prometheus text format): request
+  counters and cumulative latency by route template, method and status; scan
+  outcome counters; stored scans and assets gauges; process uptime and build
+  info. Token-protected like every other data route.
+- **Rate limiting** (`backend/ratelimit.py`): a per-client token bucket,
+  disabled by default, enabled with `ECDAT_RATE_LIMIT_REQUESTS_PER_MINUTE`
+  and an optional `ECDAT_RATE_LIMIT_BURST`. Exceeding it returns the standard
+  error envelope with `Retry-After`; health probes stay exempt.
+- **Scan lifecycle audit trail**: `scan-completed`, `scan-failed`,
+  `scan-deleted` (with the `X-Operator` actor) and `scan-retention-deleted`
+  join `asset-context-override` in the `audit_events` table.
+- **Opt-in retention** (`ECDAT_SCAN_RETENTION_DAYS`): completed scans older
+  than the configured window are pruned at start-up and hourly by the worker,
+  one audit event each; queued, running and failed scans are never touched.
+- **Database administration** (`scripts/db_admin.py`): `stats`, `backup` (via
+  the SQLite online-backup API, safe against a running API) and `vacuum`.
+- **Committed API contract** ([openapi.json](openapi.json)) with a drift test
+  that fails CI when the generated schema no longer matches the committed
+  file.
+- **Dependabot** (`.github/dependabot.yml`): weekly pip and npm updates,
+  monthly GitHub Actions updates.
+
+### Changed
+
+- Service version bumped to 1.2.0 and the committed OpenAPI document
+  regenerated at that version (it was still 1.0.0).
+- `db_admin stats` skips tables that are absent instead of failing, so it
+  works on partial databases.
+
+### Documentation
+
+- Operations guide gains metrics, rate-limiting, retention and audit sections
+  and the `db_admin` procedure; README documents the new settings and
+  endpoint.
+
 ## [1.1.0] - 2026-11-19
 
 The enterprise hardening and post-quantum migration release. Scan results
@@ -103,6 +146,7 @@ certificate discovery feeding a CycloneDX-aligned CBOM, Mosca risk scoring,
 recommendations, the React dashboard, PDF/CSV/XLSX/JSON export, the Windows
 launcher and the LAN sharing mode.
 
-[Unreleased]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ACE4AKSHAY/Akatsuki-Ecdat/releases/tag/v1.0.0

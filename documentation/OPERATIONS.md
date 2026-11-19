@@ -30,6 +30,9 @@ different job backend and is out of scope for this release.
 | `ECDAT_GIT_HOSTS` | HTTPS Git host allowlist | GitHub, GitLab, Bitbucket |
 | `ECDAT_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` | `INFO` |
 | `ECDAT_LOG_FORMAT` | `json` or `text` | `json` |
+| `ECDAT_RATE_LIMIT_REQUESTS_PER_MINUTE` | Sustained request rate per client IP; `0` disables limiting | `0` |
+| `ECDAT_RATE_LIMIT_BURST` | Bucket depth above the sustained rate | the rate |
+| `ECDAT_SCAN_RETENTION_DAYS` | Delete completed scans older than this; `0` keeps everything | `0` |
 | `ECDAT_MAX_UPLOAD_MIB` | Upload size limit | `512` |
 | `ECDAT_MAX_WORKSPACE_MIB` | Local, Git snapshot or expanded ZIP limit | `2048` |
 | `ECDAT_MAX_FILES` | Snapshot file count or ZIP entry count | `100000` |
@@ -60,6 +63,66 @@ dependency separately:
 Readiness is decided by the database, registry and signal checks. A stopped
 worker is reported but does not by itself make the instance unready, so a
 restarting deployment is not taken out of rotation prematurely.
+
+## 3a. Metrics
+
+`GET /metrics` renders the Prometheus text format (media type
+`text/plain; version=0.0.4`). Unlike the health probes it exposes no asset
+data but is still token-protected, matching every other route.
+
+| Series | Type | Meaning |
+| --- | --- | --- |
+| `ecdat_requests_total{method,route,status}` | counter | Requests processed, labelled by route template, method and status code |
+| `ecdat_request_duration_seconds_sum{method,route,status}` | counter | Cumulative request duration per series |
+| `ecdat_scan_outcomes_total{outcome}` | counter | Scan pipeline completions and failures since start |
+| `ecdat_scans_total{status}` | gauge | Stored scans grouped by status |
+| `ecdat_assets_total` | gauge | Stored cryptographic assets |
+| `ecdat_process_uptime_seconds` | gauge | Seconds since process start |
+| `ecdat_build_info{version,commit,builtAt}` | gauge | Build metadata, always `1` |
+
+Metrics are process-local, which matches the single-worker model. Scrape
+them with any Prometheus-compatible collector, or read them directly during
+an incident.
+
+## 3b. Rate limiting
+
+Off by default. Setting `ECDAT_RATE_LIMIT_REQUESTS_PER_MINUTE` enables a
+per-client token bucket: each client IP may sustain the configured rate with
+a burst of `ECDAT_RATE_LIMIT_BURST` (default: the rate itself). Exceeding it
+returns `429` with the standard error envelope and a `Retry-After` header.
+Health probes are always exempt so monitoring cannot be locked out. The
+bucket store is pruned of idle entries, so long-running processes do not grow
+unbounded. Enable it when the API is exposed beyond a single operator,
+for example in LAN mode on a shared network.
+
+## 3c. Retention
+
+Off by default. `ECDAT_SCAN_RETENTION_DAYS` deletes *completed* scans older
+than the configured number of days. The sweep runs once at start-up and then
+hourly in the scan worker. Queued, running and failed scans are never
+touched, and every pruned scan writes a `scan-retention-deleted` audit event
+recording its target, asset count and completion date. Scan reports already
+downloaded to disk and uploaded input copies are not affected.
+
+## 3d. Audit trail
+
+The `audit_events` table records every lifecycle decision, not just asset
+overrides:
+
+| Action | Written when |
+| --- | --- |
+| `scan-completed` | The pipeline finishes persisting a scan's assets |
+| `scan-failed` | The pipeline aborts, with the truncated error |
+| `scan-deleted` | An operator deletes history; the actor comes from `X-Operator` |
+| `scan-retention-deleted` | Retention prunes an aged-out scan |
+| `asset-context-override` | An operator confirms a usage context and re-plans |
+
+Query it directly for incident reviews:
+
+```sql
+SELECT created_at, actor, action, scan_id, asset_ref
+FROM audit_events ORDER BY created_at DESC LIMIT 50;
+```
 
 Both paths are exempt from the bearer token so an orchestrator can poll them
 without a credential. Everything else requires the token when
@@ -115,10 +178,11 @@ detail never reach the client.
 limit, and the limits are enforced before work starts. Symbolic links are not
 followed.
 
-**Known gaps.** No rate limiting, no account lockout, no secret rotation
-story, no encrypted storage for scan artefacts, no malware scanning of
-uploads. Treat a shared token as a control for a trusted local network, not
-as a substitute for an identity provider.
+**Known gaps.** No account lockout, no secret rotation story, no encrypted
+storage for scan artefacts, no malware scanning of uploads. The optional
+per-IP rate limiter is a congestion control, not an identity boundary.
+Treat a shared token as a control for a trusted local network, not as a
+substitute for an identity provider.
 
 ## 6. Database maintenance
 
@@ -126,9 +190,20 @@ The schema migrates itself on start-up and the migration is additive and
 idempotent, so upgrading the code is enough. Operational indexes are created
 with `CREATE INDEX IF NOT EXISTS` on every start.
 
-Backup is a file copy of `ecdat.db` plus its `-wal` and `-shm` sidecars, or a
-SQLite backup API call. Restoring is the reverse. The `audit_events` table is
-the record to preserve longest.
+Backups, health checks and compaction are provided by
+`scripts/db_admin.py`, which uses the SQLite online-backup API and is safe
+against a running API:
+
+```sh
+python scripts/db_admin.py stats                    # size, journal mode, row counts, FK check
+python scripts/db_admin.py backup --output work/backups/ecdat-weekly.db
+python scripts/db_admin.py vacuum                   # checkpoint the WAL and compact
+```
+
+The `audit_events` table is the record to preserve longest — include it in
+every backup. Restoring is a file copy of a backup over the live database
+while the API is stopped. `db_admin` supports SQLite only; `DATABASE_URL`
+must be a `sqlite:///` URL.
 
 ## 7. Maintaining the standards registry
 
@@ -176,3 +251,9 @@ The backend suite uses a temporary database and worker state directory.
 | `.github/workflows/compatibility.yml` | Windows batch setup, launcher tests, build, LAN smoke check and log capture |
 
 Both run on pushes to `main` and `feature/**` and on pull requests.
+[Dependabot](../../.github/dependabot.yml) opens weekly updates for the pip
+and npm ecosystems and monthly updates for the pinned GitHub Actions, so a
+dependency fix does not wait for a manual review cycle. A committed
+[openapi.json](../openapi.json) is checked against the generated schema by
+`test_committed_openapi_contract_matches_application`, so the API contract
+cannot drift from the code without a deliberate regeneration.

@@ -11,6 +11,7 @@ ECDAT includes automated tests and deliberately chosen scanner inputs. The test 
 | `backend/tests/test_hardening.py` | Health and readiness probes, request ids, security headers, error envelopes, audit trail, SQLite pragmas, indexes and pagination. |
 | `backend/tests/test_migration_engines.py` | Risk, recommendation, readiness, HNDL and migration-strategy behaviour, including the ECB reconfiguration path. |
 | `backend/tests/test_standards_registry.py` | Structural validation of the standards registry policy data and its migration paths. |
+| `backend/tests/test_operability.py` | Metrics series, rate limiting (429s, exemptions, disable-by-default), scan lifecycle audit, retention pruning and the committed OpenAPI contract. |
 | `tests/test_*.py` | API integration, normalization, risk, reports, ingestion, worker ownership, history deletion and launcher checks. |
 | `tests/test_input_capacity.py` | Generates temporary large workspaces, ZIPs and image JSON; checks limits, cleanup, configuration and external-tool deadlines. No large fixtures are stored in Git. |
 | `frontend/src/api.test.ts` | API mapping, pagination and risk calculations used by the dashboard. |

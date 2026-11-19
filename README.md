@@ -2,7 +2,7 @@
 
 ECDAT is a local React dashboard and FastAPI pipeline for discovering cryptographic assets in source code, dependency manifests, binary evidence, infrastructure configuration, certificates and container package inventories. It normalizes findings into a CycloneDX-aligned CBOM model, estimates migration urgency with Mosca's inequality, recommends review actions and exports reports.
 
-Current release: **1.1.0**. See the [changelog](CHANGELOG.md) for what changed and
+Current release: **1.2.0**. See the [changelog](CHANGELOG.md) for what changed and
 the [architecture reference](documentation/ARCHITECTURE.md) for how the modules
 fit together.
 
@@ -125,7 +125,10 @@ History deletion removes saved scans, findings, recommendations, queued-job opti
 | `ECDAT_GIT_HOSTS` | HTTPS Git host allowlist; GitHub, GitLab and Bitbucket by default |
 | `ECDAT_LOG_LEVEL` | Log level; `INFO` by default |
 | `ECDAT_LOG_FORMAT` | Log format; `json` by default, `text` for human-readable output |
-| `ECDAT_BUILD_COMMIT`, `ECDAT_BUILD_DATE` | Build metadata reported by the readiness probe |
+| `ECDAT_BUILD_COMMIT`, `ECDAT_BUILD_DATE` | Build metadata reported by the readiness probe and metrics |
+| `ECDAT_RATE_LIMIT_REQUESTS_PER_MINUTE` | Sustained request rate per client IP; `0` disables limiting (default) |
+| `ECDAT_RATE_LIMIT_BURST` | Allowed burst above the sustained rate; defaults to the rate |
+| `ECDAT_SCAN_RETENTION_DAYS` | Delete completed scans older than this many days; `0` keeps history forever (default) |
 | `API_PROXY_TARGET` | Vite API target; defaults to `http://127.0.0.1:8000` |
 | `ECDAT_MAX_UPLOAD_MIB` | Upload file size; 512 MiB |
 | `ECDAT_MAX_WORKSPACE_MIB` | Local file, local/Git snapshot or expanded ZIP size; 2048 MiB (2 GiB) |
@@ -146,16 +149,21 @@ API documentation is at http://127.0.0.1:8000/docs. Frontend `/api/*` requests a
 | --- | --- |
 | `GET /health` | Liveness: the process is up, with the service version |
 | `GET /health/ready` | Readiness: database, standards registry, detection signals and scan worker, plus registry and build metadata |
+| `GET /metrics` | Prometheus-format metrics: request counters and latency by route, scan outcomes, stored scans and assets, build info |
 | `GET /standards`, `GET /standards/{id}` | The policy registry and its migration paths |
 | `GET /roadmap/{scan_id}` | The scan's assets grouped into act-now, plan-and-stage, reach-target and monitor phases |
 | `PATCH /assets/{id}/context` | Operator override of the usage context; re-plans the asset and writes an audit event |
 
 Both health probes stay reachable without the bearer token so an
-orchestrator can poll them. Every request carries a request id — generated
-per request, or taken from an inbound `X-Request-ID` — which appears in the
-response headers, in the structured logs and in the error envelope. The
-[operations guide](documentation/OPERATIONS.md) covers the deployment model,
-the security posture and the registry maintenance procedure.
+orchestrator can poll them; `/metrics` and every other data route require the
+token. Every request carries a request id — generated per request, or taken
+from an inbound `X-Request-ID` — which appears in the response headers, in
+the structured logs and in the error envelope. Scan completion, failure,
+deletion and retention pruning are recorded in the `audit_events` trail, so
+the history of what happened to each scan is queryable, not just asset
+overrides. The [operations guide](documentation/OPERATIONS.md) covers the
+deployment model, metrics, rate limiting, retention, the security posture and
+the registry maintenance procedure.
 
 ## Validation
 
@@ -165,7 +173,7 @@ ecdat.bat test
 
 Or run `.venv/bin/python scripts/launcher.py test` on macOS/Linux. The individual checks are `.venv/bin/pytest -q`, `npm test` and `npm run build` (the npm commands run in `frontend`). Pytest uses a temporary database and worker state directory. An optional `ECDAT_TEST_DATABASE_URL` must point only to dedicated test data.
 
-The update passes **170 backend tests and 27 frontend tests**, plus a production build. Capacity tests complete a 101 MiB workspace with 10,002 files, a 101 MiB ZIP upload and a 21 MiB image inventory. They also check configurable limits, cleanup and timeout handling. The [CI workflow](.github/workflows/ci.yml) runs the backend suite on Windows and Linux across Python 3.10 and 3.12, the frontend unit tests and the production build, and validates the standards registry policy data. The [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, a 21 MiB upload through the LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
+The update passes **186 backend tests and 27 frontend tests**, plus a production build. Capacity tests complete a 101 MiB workspace with 10,002 files, a 101 MiB ZIP upload and a 21 MiB image inventory. They also check configurable limits, cleanup and timeout handling. A contract test keeps the committed [openapi.json](openapi.json) in lockstep with the generated schema, so the API contract cannot drift silently. The [CI workflow](.github/workflows/ci.yml) runs the backend suite on Windows and Linux across Python 3.10 and 3.12, the frontend unit tests and the production build, and validates the standards registry policy data. The [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, a 21 MiB upload through the LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
 
 The standards registry has its own gate: `python scripts/validate_registry.py` reports missing fields, unknown families, duplicate ids, colliding aliases and dangling migration candidates.
 

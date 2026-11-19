@@ -1,5 +1,6 @@
 """Single-process durable queue. Run exactly one API worker per state directory."""
 import json
+import time
 from filelock import FileLock, Timeout
 from backend.ingestion import state_dir
 import logging
@@ -7,6 +8,7 @@ import threading
 from backend.database import SessionLocal
 from backend.models.db_models import Scan, ScanJob
 from backend.engine.orchestrator import run_scan_pipeline_sync
+from backend.retention import RETENTION_SWEEP_SECONDS, prune_expired_scans
 
 log = logging.getLogger(__name__)
 
@@ -51,8 +53,13 @@ class JobWorker:
             raise
 
     def run(self):
+        last_retention_sweep = 0.0
         while not self.stop_event.is_set():
             try:
+                if time.monotonic() - last_retention_sweep >= RETENTION_SWEEP_SECONDS:
+                    last_retention_sweep = time.monotonic()
+                    with SessionLocal() as db:
+                        prune_expired_scans(db)
                 if process_next():
                     continue
             except Exception:

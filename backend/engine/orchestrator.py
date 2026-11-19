@@ -3,14 +3,26 @@ M7 Orchestration Engine
 Coordinates async scan lifecycle: Scanner -> M4 Normalizer -> M5 Risk Engine -> M6 Recommender -> Postgres/SQLite DB.
 """
 import json
+import uuid
 from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 from backend.database import SessionLocal
-from backend.models.db_models import Scan, Asset, Recommendation, ThreatModelConfig
+from backend.models.db_models import Scan, Asset, Recommendation, ThreatModelConfig, AuditEvent
 from backend.scanners.runner import run_scanners
 from backend.engine.normalizer import normalize_findings, build_cyclonedx_document
 from backend.config import threat_model_settings
+from backend.metrics import record_scan_outcome
+
+
+def _audit_scan_event(db: Session, scan_id: str, action: str, detail: dict) -> None:
+    db.add(AuditEvent(
+        id=uuid.uuid4().hex,
+        scan_id=scan_id,
+        actor="system",
+        action=action,
+        after_json=json.dumps(detail),
+    ))
 
 
 def get_active_threat_model(db: Session, override_z: Optional[float] = None) -> tuple[float, dict]:
@@ -154,7 +166,12 @@ def run_scan_pipeline_sync(
         scan_record.asset_count = len(canonical_assets)
         scan_record.completed_at = datetime.utcnow()
         scan_record.raw_cbom_json = raw_cbom_str
+        _audit_scan_event(db, scan_id, "scan-completed", {
+            "assetCount": len(canonical_assets),
+            "sourceType": source_type,
+        })
         db.commit()
+        record_scan_outcome("completed")
 
     except Exception as e:
         db.rollback()
@@ -162,6 +179,11 @@ def run_scan_pipeline_sync(
         if scan_record:
             scan_record.status = "failed"
             scan_record.error = str(e)
+            _audit_scan_event(db, scan_id, "scan-failed", {
+                "error": str(e)[:500],
+                "sourceType": source_type,
+            })
             db.commit()
+        record_scan_outcome("failed")
     finally:
         db.close()

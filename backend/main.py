@@ -8,15 +8,18 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.auth import AccessControlMiddleware
-from backend.database import init_db
+from backend.database import init_db, SessionLocal
 from backend.engine.jobs import JobWorker
 from backend.input_limits import get_input_limits
 from backend.logging_config import configure_logging, get_request_id
+from backend.metrics import render_metrics
 from backend.middleware import RequestContextMiddleware
+from backend.ratelimit import RateLimitMiddleware
+from backend.retention import prune_expired_scans
 
 from backend.api.scans import router as scans_router
 from backend.api.assets import router as assets_router
@@ -26,7 +29,7 @@ from backend.api.config_routes import router as config_router
 from backend.api.standards import router as standards_router
 from backend.api.roadmap import router as roadmap_router
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +39,8 @@ async def lifespan(app: FastAPI):
     configure_logging()
     get_input_limits()  # Reject invalid environment settings before accepting scans.
     init_db()
+    with SessionLocal() as db:
+        prune_expired_scans(db)  # Apply retention once at start-up.
     worker = JobWorker()
     worker.start()
     app.state.worker = worker
@@ -69,6 +74,7 @@ app.add_middleware(
 )
 
 app.add_middleware(AccessControlMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(RequestContextMiddleware)
 
 # Register API Routers
@@ -199,6 +205,15 @@ def readiness_check():
         },
         "requestId": get_request_id(),
     }
+
+
+@app.get("/metrics", tags=["System"], response_class=PlainTextResponse)
+def metrics_endpoint():
+    """Prometheus-format metrics. Token-protected like every other data route."""
+    return Response(
+        content=render_metrics(version=VERSION),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 if __name__ == "__main__":
