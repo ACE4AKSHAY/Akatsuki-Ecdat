@@ -182,6 +182,7 @@ The [test and sample-data map](documentation/TEST_DATA.md) identifies automated 
 ## Documentation
 
 - [Architecture reference](documentation/ARCHITECTURE.md): module ownership, data flow, extension points and the request lifecycle.
+- [Competitive landscape and roadmap](documentation/COMPETITIVE_LANDSCAPE_AND_ROADMAP.md): how ECDAT compares with CBOMkit, cdxgen, cryptobom-forge and the commercial field, and the phased upgrade plan.
 - [Migration playbook](documentation/MIGRATION_PLAYBOOK.md): how to read an asset, what each action means, context overrides and how to sequence the work.
 - [Operations guide](documentation/OPERATIONS.md): configuration, health probes, logging, security posture, database maintenance and registry upkeep.
 - [Changelog](CHANGELOG.md): release history.
