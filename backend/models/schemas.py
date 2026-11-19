@@ -28,6 +28,12 @@ class RawFinding(BaseModel):
     mode: Optional[str] = Field(None, description="Cipher mode (e.g. CBC, GCM) or null")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score 0.0 - 1.0")
     detectionTier: str = Field(..., description="'ast', 'regex', 'manifest', 'cert-parse', etc.")
+    # Optional evidence used by the context, readiness and certificate engines.
+    usageContext: Optional[str] = Field(None, description="Inferred use: encryption, signing, password-storage, transport…")
+    artifactType: Optional[str] = Field(None, description="algorithm, certificate, protocol, library, hardware-module, cloud-service")
+    protocol: Optional[str] = Field(None, description="Protocol version observed, e.g. TLS 1.2")
+    certificateFacts: Optional[Dict[str, Any]] = Field(None, description="Parsed X.509 facts for certificate findings")
+    referencedPaths: Optional[List[str]] = Field(None, description="Paths referenced by a config directive (e.g. ssl_certificate)")
 
 
 # ==============================================================================
@@ -82,6 +88,31 @@ class EcdatEnrichment(BaseModel):
     recommendationMode: Optional[str] = None
     migrationComplexity: Optional[str] = None
     relativeSizeDelta: Optional[str] = None
+    # Four independent classification axes and migration guidance (M5/M6).
+    usageContext: str = "unknown"
+    contextConfidence: float = 0.0
+    artifactType: str = "algorithm"
+    classicalStatus: str = "unknown"
+    quantumStatus: str = "unknown"
+    standardsMaturity: str = "not-applicable"
+    migrationAction: str = "manual-review"
+    migrationPhase: str = "monitor"
+    complianceTarget: str = "NIST-general"
+    hndlApplicable: bool = False
+    hndlTier: str = "Unknown"
+    hndlScore: Optional[float] = None
+    hndlExplanation: Optional[str] = None
+    readinessScore: Optional[int] = None
+    readinessTier: str = "Unknown"
+    readinessComponents: Dict[str, Any] = Field(default_factory=dict)
+    blockers: List[str] = Field(default_factory=list)
+    assumptions: List[str] = Field(default_factory=list)
+    candidates: List[Dict[str, Any]] = Field(default_factory=list)
+    playbook: List[Dict[str, Any]] = Field(default_factory=list)
+    strategyRationale: Optional[str] = None
+    certificateFacts: Optional[Dict[str, Any]] = None
+    evidence: Dict[str, Any] = Field(default_factory=dict)
+    relatedAssetRefs: List[str] = Field(default_factory=list)
 
 
 class CanonicalCBOMAsset(BaseModel):
@@ -147,6 +178,22 @@ class AssetDetailResponse(BaseModel):
     asset: CanonicalCBOMAsset
     moscaBreakdown: Dict[str, Any]
     recommendation: Dict[str, Any]
+    assessment: Dict[str, Any] = Field(default_factory=dict)
+    strategy: Dict[str, Any] = Field(default_factory=dict)
+    relationships: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class AssetContextUpdateRequest(BaseModel):
+    usageContext: Optional[Literal[
+        "encryption", "signing", "token-signing", "firmware-signing", "hashing",
+        "integrity", "password-storage", "key-establishment", "transport",
+        "key-management", "certificate", "data-protection", "unknown",
+    ]] = None
+    artifactType: Optional[Literal[
+        "algorithm", "certificate", "protocol", "library", "hardware-module", "cloud-service", "key-reference",
+    ]] = None
+    complianceTarget: Optional[Literal["NIST-general", "CNSA2.0"]] = None
+    protocol: Optional[str] = None
 
 
 class ThreatModelUpdateRequest(BaseModel):

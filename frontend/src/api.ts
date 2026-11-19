@@ -1,4 +1,6 @@
-import { FrontendAsset, AssetSummaryResponse, ScanResponse, RiskTier } from './types';
+import { FrontendAsset, AssetSummaryResponse, ScanResponse, RiskTier, AssetDetailResponse, RoadmapResponse } from './types';
+
+export interface ContextUpdate { usageContext?: string; artifactType?: string; complianceTarget?: 'NIST-general' | 'CNSA2.0'; protocol?: string; }
 
 export function computeAssetTier(r: number, autoEsc: boolean): RiskTier {
   if (autoEsc) return 'critical';
@@ -41,6 +43,26 @@ export function mapBackendAssetToFrontend(backendItem: any): FrontendAsset {
     exposure: enc.exposure || 'internal-only',
     vulnerabilityReason: enc.vulnerabilityReason,
     sizeDelta: enc.relativeSizeDelta,
+    usageContext: enc.usageContext,
+    artifactType: enc.artifactType,
+    action: enc.migrationAction,
+    phase: enc.migrationPhase,
+    classicalStatus: enc.classicalStatus,
+    quantumStatus: enc.quantumStatus,
+    maturity: enc.standardsMaturity,
+    readinessTier: enc.readinessTier,
+    readinessScore: enc.readinessScore,
+    readinessComponents: enc.readinessComponents,
+    hndlTier: enc.hndlTier,
+    hndlApplicable: enc.hndlApplicable,
+    blockers: enc.blockers || [],
+    assumptions: enc.assumptions || [],
+    candidates: enc.candidates || [],
+    playbook: enc.playbook || [],
+    strategyRationale: enc.strategyRationale,
+    certificateFacts: enc.certificateFacts || undefined,
+    evidence: enc.evidence || {},
+    relatedAssetRefs: enc.relatedAssetRefs || [],
   };
 }
 
@@ -101,6 +123,13 @@ export const startScan = (target: string, sourceType: 'path' | 'git' | 'image' =
 export const downloadReportUrl = (id: string, format: 'pdf' | 'csv' | 'xlsx' | 'json') =>
   `${API_BASE}/reports/${encodeURIComponent(id)}?format=${format}`;
 export const downloadCBOMUrl = (id: string) => `${API_BASE}/cbom/${encodeURIComponent(id)}`;
+
+export const fetchAssetDetail = (id: string) => request<AssetDetailResponse>(`/assets/${encodeURIComponent(id)}`);
+export const updateAssetContext = (id: string, patch: ContextUpdate) => request<AssetDetailResponse>(
+  `/assets/${encodeURIComponent(id)}/context`,
+  { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) },
+);
+export const fetchRoadmap = (scanId: string) => request<RoadmapResponse>(`/roadmap/${encodeURIComponent(scanId)}`);
 
 export function uploadScan(file: File, sourceType: 'upload' | 'image' = 'upload') {
   const data = new FormData(); data.append('file', file); data.append('sourceType', sourceType);

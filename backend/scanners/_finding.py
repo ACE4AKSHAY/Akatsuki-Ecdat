@@ -11,7 +11,7 @@ findings via RawFinding(...) so field names, defaults, and the
 """
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -68,6 +68,12 @@ class RawFinding(BaseModel):
     mode: Optional[str] = None
     confidence: float = Field(ge=0.0, le=1.0)
     detectionTier: DetectionTier
+    # Optional v1.1 evidence that does not change the frozen contract fields.
+    usageContext: Optional[str] = None
+    artifactType: Optional[str] = None
+    protocol: Optional[str] = None
+    certificateFacts: Optional[Dict[str, Any]] = None
+    referencedPaths: Optional[List[str]] = None
 
     def to_dict(self) -> dict:
         """Serialise with explicit `null`s for N/A fields (CONTRACT §1 rule)."""

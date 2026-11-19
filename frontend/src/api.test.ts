@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchLiveAssets, fetchScans, startScan, computeAssetTier, computeAllAssetsWithZ, mapBackendAssetToFrontend, downloadReportUrl, setAccessToken, uploadScan } from './api';
+import { fetchLiveAssets, fetchScans, startScan, computeAssetTier, computeAllAssetsWithZ, mapBackendAssetToFrontend, downloadReportUrl, setAccessToken, uploadScan, fetchAssetDetail, updateAssetContext, fetchRoadmap } from './api';
 afterEach(() => { setAccessToken(''); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); });
 describe('backend integration', () => {
   it('keeps empty results empty', async () => {
@@ -29,6 +29,49 @@ describe('backend integration', () => {
     expect(a.loc).toBe('auth.py:2'); expect(a.bu).toBe('General'); expect(a.z).toBe(12);
   });
 });
+describe('migration assessment', () => {
+  it('maps assessment, readiness and playbook fields', () => {
+    const a = mapBackendAssetToFrontend({
+      name: 'RSA-2048', 'bom-ref': 'rsa-1',
+      ecdatEnrichment: {
+        usageContext: 'key-establishment', artifactType: 'algorithm',
+        migrationAction: 'hybridize', migrationPhase: 'transition',
+        classicalStatus: 'acceptable', quantumStatus: 'vulnerable',
+        standardsMaturity: 'final', readinessTier: 'Partial', readinessScore: 42,
+        hndlApplicable: true, hndlTier: 'High',
+        candidates: [{ id: 'x25519mlkem768', label: 'X25519MLKEM768', fit: 'preferred' }],
+        playbook: [{ order: 1, phase: 'prepare', action: 'Inventory endpoints' }],
+        blockers: ['Library version must be verified.'],
+      },
+    });
+    expect(a.action).toBe('hybridize');
+    expect(a.phase).toBe('transition');
+    expect(a.readinessScore).toBe(42);
+    expect(a.hndlTier).toBe('High');
+    expect(a.candidates?.[0].id).toBe('x25519mlkem768');
+    expect(a.playbook?.[0].order).toBe(1);
+    expect(a.blockers).toContain('Library version must be verified.');
+  });
+  it('loads detail and patches context on namespaced routes', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ asset: { name: 'RSA', ecdatEnrichment: {} }, moscaBreakdown: {}, recommendation: {}, assessment: {}, strategy: {}, relationships: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ asset: { name: 'RSA', ecdatEnrichment: { usageContext: 'signing' } }, moscaBreakdown: {}, recommendation: {}, assessment: {}, strategy: {}, relationships: [] }) });
+    vi.stubGlobal('fetch', fetch);
+    await fetchAssetDetail('asset/1');
+    await updateAssetContext('asset/1', { usageContext: 'signing' });
+    expect(fetch.mock.calls[0][0]).toContain('/api/assets/asset%2F1');
+    expect(fetch.mock.calls[1][0]).toBe('/api/assets/asset%2F1/context');
+    expect(fetch.mock.calls[1][1].method).toBe('PATCH');
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ usageContext: 'signing' });
+  });
+  it('fetches a scan roadmap', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ scanId: 'scan/1', phases: [], total: 0, summary: {} }) });
+    vi.stubGlobal('fetch', fetch);
+    await fetchRoadmap('scan/1');
+    expect(fetch.mock.calls[0][0]).toBe('/api/roadmap/scan%2F1');
+  });
+});
+
 describe('risk parity', () => {
   it.each([[.5999,'low'],[.6,'medium'],[.9,'high'],[1.2,'critical']])('maps %s to %s', (r,tier) => expect(computeAssetTier(Number(r),false)).toBe(tier));
   it('preserves escalation and rounds ratios like the API', () => {

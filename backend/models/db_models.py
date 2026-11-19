@@ -60,6 +60,18 @@ class Asset(Base):
     urgency_ratio_r = Column(Float, nullable=False)
     quantum_vulnerable = Column(Boolean, default=True)
 
+    # Assessment and migration-planning fields (nullable for pre-existing rows)
+    usage_context = Column(String(64), nullable=True, index=True)
+    artifact_type = Column(String(32), nullable=True, index=True)
+    classical_status = Column(String(32), nullable=True, index=True)
+    quantum_status = Column(String(32), nullable=True, index=True)
+    standards_maturity = Column(String(32), nullable=True)
+    migration_action = Column(String(32), nullable=True, index=True)
+    migration_phase = Column(String(32), nullable=True, index=True)
+    readiness_score = Column(Integer, nullable=True)
+    readiness_tier = Column(String(32), nullable=True)
+    hndl_tier = Column(String(32), nullable=True)
+
     # Full canonical JSON payload
     asset_json = Column(Text, nullable=False)
 
@@ -81,6 +93,12 @@ class Recommendation(Base):
     complexity = Column(String(32), nullable=False)
     rationale = Column(Text, nullable=True)
     reference_standard = Column(String(128), nullable=True)
+    action = Column(String(32), nullable=True)
+    phase = Column(String(32), nullable=True)
+    candidates_json = Column(Text, nullable=True)
+    playbook_json = Column(Text, nullable=True)
+    blockers_json = Column(Text, nullable=True)
+    assumptions_json = Column(Text, nullable=True)
 
     asset = relationship("Asset", back_populates="recommendations")
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Database, ChartNoAxesCombined, FileSearch, Lightbulb, ShieldCheck, Monitor } from 'lucide-react';
+import { LayoutDashboard, Database, ChartNoAxesCombined, FileSearch, Lightbulb, ShieldCheck, Monitor, Route } from 'lucide-react';
 import { Screen } from '../types';
 import { targetName } from '../format';
 interface Props { currentScreen: Screen; onScreenChange: (screen: Screen) => void; criticalCount: number; scanTargetName?: string; children: React.ReactNode; }
@@ -9,6 +9,7 @@ const screens = [
   { id: 'heatmap', label: 'Risk heatmap', title: 'Understand your exposure', subtitle: 'Explore how your threat timeline changes migration urgency.', icon: ChartNoAxesCombined },
   { id: 'detail', label: 'Asset detail', title: 'A closer look', subtitle: 'Trace each finding to its source and explore migration options.', icon: FileSearch },
   { id: 'recommend', label: 'Recommendations', title: 'Plan your migration', subtitle: 'Prioritize replacements and export your scan results.', icon: Lightbulb },
+  { id: 'roadmap', label: 'Migration roadmap', title: 'Sequence the migration', subtitle: 'Turn findings into phased, reversible work.', icon: Route },
 ] as const;
 export const AppShell: React.FC<Props> = ({ currentScreen, onScreenChange, scanTargetName, children }) => {
   const current = screens.find(s => s.id === currentScreen)!;

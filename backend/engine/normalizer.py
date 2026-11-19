@@ -16,6 +16,11 @@ from backend.models.schemas import (
 )
 from backend.engine.risk import evaluate_risk
 from backend.engine.recommend import generate_recommendation
+from backend.engine.standards import classify
+from backend.engine.context import build_context, infer_artifact_type
+from backend.engine.hndl import assess_hndl
+from backend.engine.readiness import assess_readiness
+from backend.engine.strategy import build_migration_strategy
 
 CANONICAL_ALGORITHM_MAP = {
     "SHA1": ("SHA-1", "1.3.14.3.2.26", "hash", ["digest"], 80, 0),
@@ -150,6 +155,53 @@ def normalize_findings(
                 is_firmware=is_firmware,
             )
 
+            # Context, classification, HNDL, readiness and the migration strategy
+            # run alongside the legacy recommendation so existing fields stay stable.
+            raw_category = f.primitiveCategory or prim_cat
+            context = build_context(
+                f.filePath, f.rawSignal, raw_category, f.detectedPrimitive, f.mode
+            )
+            usage_context = f.usageContext or context["usageContext"]
+            artifact_type = f.artifactType or infer_artifact_type(raw_category, usage_context)
+
+            assessment = classify(can_name, raw_category, f.keySizeBits, f.mode)
+            quantum_status = assessment["quantumStatus"]
+            if quantum_status == "unknown":
+                q_score = risk_eval["quantumVulnerabilityScore"]
+                quantum_status = "vulnerable" if q_score >= 1.0 else "weakened" if q_score > 0 else "resistant"
+            classical_status = assessment["classicalStatus"]
+            if classical_status == "unknown" and risk_eval["autoEscalated"]:
+                classical_status = "broken"
+
+            readiness = assess_readiness(
+                artifact_type=artifact_type,
+                usage_context=usage_context,
+                library=f.library,
+                certificate_facts=f.certificateFacts,
+                protocol=f.protocol,
+            )
+            hndl = assess_hndl(
+                quantum_status=quantum_status,
+                usage_context=usage_context,
+                exposure=exposure,
+                shelf_life_years=x,
+                z_years=threat_timeline_z,
+            )
+            strategy = build_migration_strategy(
+                name=can_name,
+                primitive_category=raw_category,
+                usage_context=usage_context,
+                artifact_type=artifact_type,
+                classical_status=classical_status,
+                quantum_status=quantum_status,
+                compliance_target=compliance_target,
+                is_firmware=is_firmware,
+                mode=f.mode,
+                certificate_facts=f.certificateFacts,
+                blockers=readiness["blockers"],
+                mosca_tier=risk_eval["moscaRiskTier"],
+            )
+
             bom_ref = f"crypto-asset-{uuid.uuid4().hex[:6]}"
 
             enrichment = EcdatEnrichment(
@@ -173,6 +225,36 @@ def normalize_findings(
                 recommendationMode=rec.get("mode"),
                 migrationComplexity=rec.get("complexity"),
                 relativeSizeDelta=rec.get("relativeSizeDelta"),
+                usageContext=usage_context,
+                contextConfidence=context["contextConfidence"],
+                artifactType=artifact_type,
+                classicalStatus=classical_status,
+                quantumStatus=quantum_status,
+                standardsMaturity=assessment["standardsMaturity"],
+                migrationAction=strategy["action"],
+                migrationPhase=strategy["phase"],
+                complianceTarget=compliance_target,
+                hndlApplicable=hndl["applicable"],
+                hndlTier=hndl["tier"],
+                hndlScore=hndl["score"],
+                hndlExplanation=hndl["explanation"],
+                readinessScore=readiness["score"],
+                readinessTier=readiness["tier"],
+                readinessComponents=readiness["components"],
+                blockers=strategy["blockers"],
+                assumptions=strategy["assumptions"],
+                candidates=strategy["candidates"],
+                playbook=strategy["playbook"],
+                strategyRationale=strategy["rationale"],
+                certificateFacts=f.certificateFacts,
+                evidence={
+                    "detectedPrimitive": f.detectedPrimitive,
+                    "detectionTier": f.detectionTier,
+                    "mode": f.mode,
+                    "protocol": f.protocol,
+                    "sourceModule": f.sourceModule,
+                    "referencedPaths": f.referencedPaths,
+                },
             )
 
             crypto_props = CryptoProperties(
@@ -213,7 +295,27 @@ def normalize_findings(
         )
         for data in grouped_assets.values()
     ]
+    _link_referenced_certificates(canonical_list)
     return canonical_list
+
+
+def _link_referenced_certificates(assets: List[CanonicalCBOMAsset]) -> None:
+    """Join config directives such as `ssl_certificate certs/x.pem` to the
+    certificate assets discovered in the same scan (matched by file name)."""
+    cert_by_name = {}
+    for asset in assets:
+        if asset.ecdatEnrichment and asset.ecdatEnrichment.artifactType == "certificate" and asset.occurrences:
+            cert_by_name[asset.occurrences[0].location.replace("\\", "/").rsplit("/", 1)[-1]] = asset
+    for asset in assets:
+        evidence = (asset.ecdatEnrichment.evidence or {}) if asset.ecdatEnrichment else {}
+        for ref in evidence.get("referencedPaths") or []:
+            name = str(ref).replace("\\", "/").rsplit("/", 1)[-1]
+            target = cert_by_name.get(name)
+            if not target or target.bom_ref == asset.bom_ref:
+                continue
+            for src, dst in ((asset, target), (target, asset)):
+                if dst.bom_ref not in src.ecdatEnrichment.relatedAssetRefs:
+                    src.ecdatEnrichment.relatedAssetRefs.append(dst.bom_ref)
 
 
 def build_cyclonedx_document(scan_id: str, assets: List[CanonicalCBOMAsset]) -> CycloneDXDocument:

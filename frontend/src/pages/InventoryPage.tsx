@@ -10,6 +10,8 @@ interface InventoryPageProps {
 export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAsset }) => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | RiskTier>('all');
+  const [action, setAction] = useState('all');
+  const [readiness, setReadiness] = useState('all');
 
   const filterOptions: { id: 'all' | RiskTier; label: string }[] = [
     { id: 'all', label: 'All' },
@@ -19,7 +21,11 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAs
     { id: 'low', label: 'Low' },
   ];
 
-  const filteredAssets = assets.filter((a) => (filter === 'all' || a.tier === filter) && `${a.name} ${a.loc} ${a.bu}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredAssets = assets.filter((a) =>
+    (filter === 'all' || a.tier === filter)
+    && (action === 'all' || a.action === action)
+    && (readiness === 'all' || a.readinessTier === readiness)
+    && `${a.name} ${a.loc} ${a.bu} ${a.usageContext || ''} ${a.action || ''}`.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div>
@@ -45,6 +51,19 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAs
         })}
       </div>
 
+      <div className="flex gap-3 mb-4 flex-wrap text-[12px] text-ink-soft">
+        <label>Plan
+          <select aria-label="Filter by migration action" value={action} onChange={e => setAction(e.target.value)} className="ml-2 border border-border rounded-sm p-1.5 bg-surface text-ink">
+            {['all', 'replace', 'hybridize', 'deprecate', 'reissue-certificate', 'reconfigure', 'monitor', 'retain', 'manual-review'].map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label>Readiness
+          <select aria-label="Filter by readiness" value={readiness} onChange={e => setReadiness(e.target.value)} className="ml-2 border border-border rounded-sm p-1.5 bg-surface text-ink">
+            {['all', 'Ready', 'Partial', 'Blocked', 'Unknown'].map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+      </div>
+
       <p className="text-ink-soft text-sm mb-3">{filteredAssets.length} matching assets</p>
       {/* Inventory Table */}
       <div className="overflow-x-auto">
@@ -67,6 +86,12 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAs
                 Classification
               </th>
               <th className="text-left font-medium text-ink-faint text-[11px] pb-2 border-b border-border-strong">
+                Plan
+              </th>
+              <th className="text-left font-medium text-ink-faint text-[11px] pb-2 border-b border-border-strong">
+                Readiness
+              </th>
+              <th className="text-left font-medium text-ink-faint text-[11px] pb-2 border-b border-border-strong">
                 Risk
               </th>
             </tr>
@@ -87,6 +112,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ assets, onSelectAs
                   {asset.loc}
                 </td>
                 <td className="py-[10px] pr-2 border-b border-border text-ink-soft">{asset.bu}</td>
+                <td className="py-[10px] pr-2 border-b border-border text-ink-soft">{asset.action || '—'}</td>
+                <td className="py-[10px] pr-2 border-b border-border text-ink-soft">{asset.readinessTier || 'Unknown'}</td>
                 <td className="py-[10px] pr-2 border-b border-border">
                   <RiskChip tier={asset.tier || 'low'} />
                 </td>

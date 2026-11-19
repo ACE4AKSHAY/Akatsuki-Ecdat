@@ -14,6 +14,8 @@ from backend.api.assets import router as assets_router
 from backend.api.cbom import router as cbom_router
 from backend.api.reports import router as reports_router
 from backend.api.config_routes import router as config_router
+from backend.api.standards import router as standards_router
+from backend.api.roadmap import router as roadmap_router
 
 
 @asynccontextmanager
@@ -60,6 +62,8 @@ app.include_router(assets_router)
 app.include_router(cbom_router)
 app.include_router(reports_router)
 app.include_router(config_router)
+app.include_router(standards_router)
+app.include_router(roadmap_router)
 
 
 @app.get("/health", tags=["System"])

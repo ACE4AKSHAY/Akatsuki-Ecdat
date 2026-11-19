@@ -116,6 +116,16 @@ def run_scan_pipeline_sync(
                 threat_timeline_z=enrichment.moscaZ,
                 urgency_ratio_r=enrichment.moscaR,
                 quantum_vulnerable=enrichment.quantumVulnerable,
+                usage_context=enrichment.usageContext,
+                artifact_type=enrichment.artifactType,
+                classical_status=enrichment.classicalStatus,
+                quantum_status=enrichment.quantumStatus,
+                standards_maturity=enrichment.standardsMaturity,
+                migration_action=enrichment.migrationAction,
+                migration_phase=enrichment.migrationPhase,
+                readiness_score=enrichment.readinessScore,
+                readiness_tier=enrichment.readinessTier,
+                hndl_tier=enrichment.hndlTier,
                 asset_json=asset_obj.model_dump_json(by_alias=True),
             )
             db.add(db_asset)
@@ -129,6 +139,12 @@ def run_scan_pipeline_sync(
                 complexity=enrichment.migrationComplexity or "Medium",
                 rationale=enrichment.vulnerabilityReason,
                 reference_standard=enrichment.referenceStandard,
+                action=enrichment.migrationAction,
+                phase=enrichment.migrationPhase,
+                candidates_json=json.dumps(enrichment.candidates),
+                playbook_json=json.dumps(enrichment.playbook),
+                blockers_json=json.dumps(enrichment.blockers),
+                assumptions_json=json.dumps(enrichment.assumptions),
             )
             db.add(db_rec)
 

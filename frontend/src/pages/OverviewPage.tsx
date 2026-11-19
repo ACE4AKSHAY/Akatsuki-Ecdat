@@ -1,5 +1,5 @@
 import React from 'react';
-import { File, TriangleAlert, Atom, ChartNoAxesCombined, ArrowUpRight } from 'lucide-react';
+import { File, TriangleAlert, Atom, ChartNoAxesCombined, ArrowUpRight, Route, Radar } from 'lucide-react';
 import { FrontendAsset, RiskTier } from '../types';
 import { RiskChip } from '../components/RiskChip';
 interface Props { assets: FrontendAsset[]; scansCount?: number; onSelectAsset?: (id: string) => void; }
@@ -9,6 +9,8 @@ export const OverviewPage: React.FC<Props> = ({ assets, scansCount = 0, onSelect
     { label: 'Total assets', value: assets.length, note: 'Cryptographic assets discovered', icon: File, tone: 'neutral' },
     { label: 'Critical', value: counts.critical, note: 'Require immediate attention', icon: TriangleAlert, tone: 'critical' },
     { label: 'Quantum vulnerable', value: assets.filter(a => a.quantumVulnerable).length, note: 'Flagged by the risk engine', icon: Atom, tone: 'warning' },
+    { label: 'Transition planned', value: assets.filter(a => ['replace', 'hybridize', 'reissue-certificate', 'reconfigure', 'deprecate'].includes(a.action || '')).length, note: 'Assets with a concrete migration action', icon: Route, tone: 'teal' },
+    { label: 'HNDL at risk', value: assets.filter(a => a.hndlApplicable && ['Critical', 'High'].includes(a.hndlTier || '')).length, note: 'Confidentiality exposed to harvest-now-decrypt-later', icon: Radar, tone: 'warning' },
     { label: 'Scans', value: scansCount, note: 'Completed in recent history', icon: ChartNoAxesCombined, tone: 'teal' },
   ];
   const top = [...assets].sort((a,b) => (b.autoEsc ? 999 : b.r || 0) - (a.autoEsc ? 999 : a.r || 0)).slice(0, 7);

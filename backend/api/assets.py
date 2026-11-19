@@ -12,11 +12,71 @@ from backend.models.db_models import Asset, Recommendation
 from backend.models.schemas import (
     AssetSummaryResponse,
     AssetDetailResponse,
+    AssetContextUpdateRequest,
     CanonicalCBOMAsset,
 )
 from backend.engine.risk import calculate_mosca_ratio, get_mosca_tier
+from backend.engine.context import infer_artifact_type
+from backend.engine.readiness import assess_readiness
+from backend.engine.strategy import build_migration_strategy
 
 router = APIRouter(prefix="/assets", tags=["Assets"])
+
+
+def _relationships(db: Session, db_asset: Asset, asset_dict: dict) -> list:
+    refs = asset_dict.get("ecdatEnrichment", {}).get("relatedAssetRefs") or []
+    if not refs:
+        return []
+    rows = db.query(Asset).filter(
+        Asset.scan_id == db_asset.scan_id, Asset.bom_ref.in_(refs)
+    ).all()
+    return [
+        {
+            "bomRef": row.bom_ref,
+            "name": row.name,
+            "artifactType": row.artifact_type,
+            "relation": "referenced-by" if row.bom_ref in refs else "related",
+        }
+        for row in rows
+    ]
+
+
+def _strategy_from(enrichment) -> dict:
+    return {
+        "action": enrichment.migrationAction,
+        "phase": enrichment.migrationPhase,
+        "selectedCandidate": enrichment.recommendedReplacement,
+        "candidates": enrichment.candidates,
+        "blockers": enrichment.blockers,
+        "assumptions": enrichment.assumptions,
+        "playbook": enrichment.playbook,
+        "rationale": enrichment.strategyRationale,
+    }
+
+
+def _assessment_from(enrichment) -> dict:
+    return {
+        "classicalStatus": enrichment.classicalStatus,
+        "quantumStatus": enrichment.quantumStatus,
+        "standardsMaturity": enrichment.standardsMaturity,
+        "usageContext": enrichment.usageContext,
+        "contextConfidence": enrichment.contextConfidence,
+        "artifactType": enrichment.artifactType,
+        "complianceTarget": enrichment.complianceTarget,
+        "readiness": {
+            "score": enrichment.readinessScore,
+            "tier": enrichment.readinessTier,
+            "components": enrichment.readinessComponents,
+        },
+        "hndl": {
+            "applicable": enrichment.hndlApplicable,
+            "tier": enrichment.hndlTier,
+            "score": enrichment.hndlScore,
+            "explanation": enrichment.hndlExplanation,
+        },
+        "certificateFacts": enrichment.certificateFacts,
+        "evidence": enrichment.evidence,
+    }
 
 
 @router.get("", response_model=AssetSummaryResponse)
@@ -26,6 +86,11 @@ def list_assets(
     exposure: Optional[str] = Query(None, description="Filter by exposure (external-facing, internal-only)"),
     businessCriticality: Optional[str] = Query(None, description="Filter by business criticality"),
     algorithm: Optional[str] = Query(None, description="Filter by algorithm name (e.g. SHA-1, RSA-2048)"),
+    usageContext: Optional[str] = Query(None, description="Filter by inferred use (signing, transport, password-storage…)"),
+    artifactType: Optional[str] = Query(None, description="Filter by artifact type (algorithm, certificate, protocol…)"),
+    migrationAction: Optional[str] = Query(None, description="Filter by selected action (replace, hybridize, retain…)"),
+    readinessTier: Optional[str] = Query(None, description="Filter by migration readiness tier"),
+    hndlTier: Optional[str] = Query(None, description="Filter by HNDL exposure tier"),
     page: int = Query(1, ge=1, description="Page number"),
     pageSize: int = Query(50, ge=1, le=200, description="Items per page"),
     z: Optional[float] = Query(None, ge=0.5, le=50.0, description="Interactive threat-timeline Z slider override"),
@@ -45,6 +110,16 @@ def list_assets(
         query = query.filter(Asset.business_criticality.ilike(f"%{businessCriticality}%"))
     if algorithm:
         query = query.filter(Asset.name.ilike(f"%{algorithm}%"))
+    if usageContext:
+        query = query.filter(Asset.usage_context == usageContext)
+    if artifactType:
+        query = query.filter(Asset.artifact_type == artifactType)
+    if migrationAction:
+        query = query.filter(Asset.migration_action == migrationAction)
+    if readinessTier:
+        query = query.filter(Asset.readiness_tier == readinessTier)
+    if hndlTier:
+        query = query.filter(Asset.hndl_tier == hndlTier)
 
     all_matching_db_assets = query.all()
 
@@ -150,6 +225,8 @@ def get_asset_detail(asset_id: str, db: Session = Depends(get_db)):
         "rationale": rec.rationale if rec else enrichment.vulnerabilityReason,
         "referenceStandard": rec.reference_standard if rec else enrichment.referenceStandard,
         "relativeSizeDelta": enrichment.relativeSizeDelta,
+        "action": rec.action if rec else enrichment.migrationAction,
+        "phase": rec.phase if rec else enrichment.migrationPhase,
     }
 
     mosca_breakdown = {
@@ -171,4 +248,93 @@ def get_asset_detail(asset_id: str, db: Session = Depends(get_db)):
         asset=canonical_asset,
         moscaBreakdown=mosca_breakdown,
         recommendation=rec_dict,
+        assessment=_assessment_from(enrichment),
+        strategy=_strategy_from(enrichment),
+        relationships=_relationships(db, db_asset, asset_dict),
     )
+
+
+@router.patch("/{asset_id}/context", response_model=AssetDetailResponse)
+def update_asset_context(
+    asset_id: str,
+    payload: AssetContextUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    """Let an operator confirm the use context and re-plan the migration."""
+    db_asset = db.query(Asset).filter(
+        (Asset.id == asset_id) | (Asset.bom_ref == asset_id)
+    ).first()
+    if not db_asset:
+        raise HTTPException(status_code=404, detail=f"Asset '{asset_id}' not found")
+
+    asset_dict = json.loads(db_asset.asset_json)
+    enrichment = dict(asset_dict.get("ecdatEnrichment", {}))
+    primitive_category = db_asset.primitive_category or enrichment.get("artifactType", "algorithm")
+
+    usage_context = payload.usageContext or enrichment.get("usageContext") or "unknown"
+    artifact_type = payload.artifactType or enrichment.get("artifactType") or infer_artifact_type(
+        primitive_category, usage_context
+    )
+    compliance_target = payload.complianceTarget or enrichment.get("complianceTarget", "NIST-general")
+    evidence = dict(enrichment.get("evidence") or {})
+    if payload.protocol:
+        evidence["protocol"] = payload.protocol
+
+    readiness = assess_readiness(
+        artifact_type=artifact_type,
+        usage_context=usage_context,
+        library=db_asset.library,
+        certificate_facts=enrichment.get("certificateFacts"),
+        protocol=evidence.get("protocol"),
+    )
+    strategy = build_migration_strategy(
+        name=db_asset.name,
+        primitive_category=primitive_category,
+        usage_context=usage_context,
+        artifact_type=artifact_type,
+        classical_status=enrichment.get("classicalStatus", "unknown"),
+        quantum_status=enrichment.get("quantumStatus", "unknown"),
+        compliance_target=compliance_target,
+        mode=evidence.get("mode"),
+        certificate_facts=enrichment.get("certificateFacts"),
+        blockers=readiness["blockers"],
+        mosca_tier=db_asset.risk_tier,
+    )
+
+    enrichment.update({
+        "usageContext": usage_context,
+        "contextConfidence": 1.0,
+        "artifactType": artifact_type,
+        "complianceTarget": compliance_target,
+        "migrationAction": strategy["action"],
+        "migrationPhase": strategy["phase"],
+        "readinessScore": readiness["score"],
+        "readinessTier": readiness["tier"],
+        "readinessComponents": readiness["components"],
+        "blockers": strategy["blockers"],
+        "assumptions": strategy["assumptions"],
+        "candidates": strategy["candidates"],
+        "playbook": strategy["playbook"],
+        "strategyRationale": strategy["rationale"],
+        "evidence": evidence,
+    })
+    asset_dict["ecdatEnrichment"] = enrichment
+    db_asset.asset_json = json.dumps(asset_dict)
+    db_asset.usage_context = usage_context
+    db_asset.artifact_type = artifact_type
+    db_asset.migration_action = strategy["action"]
+    db_asset.migration_phase = strategy["phase"]
+    db_asset.readiness_score = readiness["score"]
+    db_asset.readiness_tier = readiness["tier"]
+
+    rec = db.query(Recommendation).filter(Recommendation.asset_id == db_asset.id).first()
+    if rec:
+        rec.action = strategy["action"]
+        rec.phase = strategy["phase"]
+        rec.candidates_json = json.dumps(strategy["candidates"])
+        rec.playbook_json = json.dumps(strategy["playbook"])
+        rec.blockers_json = json.dumps(strategy["blockers"])
+        rec.assumptions_json = json.dumps(strategy["assumptions"])
+    db.commit()
+
+    return get_asset_detail(asset_id, db)

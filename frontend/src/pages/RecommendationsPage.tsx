@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FrontendAsset } from '../types';
 import { Button } from '../components/Button';
 import { RiskChip } from '../components/RiskChip';
+import { Badge } from '../components/AssessmentBadges';
 import { downloadReportUrl, downloadCBOMUrl, downloadExport } from '../api';
 
 interface RecommendationsPageProps {
@@ -16,14 +17,16 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({
   onSelectAsset,
 }) => {
   const [exportError, setExportError] = useState('');
-  // Sort recommendations: auto-escalated first, then highest r
-  const actionableAssets = assets
-    .filter((a) => a.rec !== 'No change needed')
-    .sort((a, b) => {
-      const scoreA = a.autoEsc ? 99 : a.r ?? 0;
-      const scoreB = b.autoEsc ? 99 : b.r ?? 0;
-      return scoreB - scoreA;
-    });
+  // Sort by migration phase, then urgency so retained assets remain visible last.
+  const phaseRank: Record<string, number> = { immediate: 0, transition: 1, target: 2, monitor: 3 };
+  const actionableAssets = [...assets].sort((a, b) => {
+    const phaseA = phaseRank[a.phase || 'monitor'] ?? 4;
+    const phaseB = phaseRank[b.phase || 'monitor'] ?? 4;
+    if (phaseA !== phaseB) return phaseA - phaseB;
+    const scoreA = a.autoEsc ? 99 : a.r ?? 0;
+    const scoreB = b.autoEsc ? 99 : b.r ?? 0;
+    return scoreB - scoreA;
+  });
 
   const handleExport = async (format: 'pdf' | 'csv' | 'xlsx' | 'cbom') => {
     let url: string;
@@ -68,6 +71,9 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({
                 Migration
               </th>
               <th className="text-left font-medium text-ink-faint text-[11px] pb-2 border-b border-border-strong">
+                Plan
+              </th>
+              <th className="text-left font-medium text-ink-faint text-[11px] pb-2 border-b border-border-strong">
                 Complexity
               </th>
               <th className="text-left font-medium text-ink-faint text-[11px] pb-2 border-b border-border-strong">
@@ -91,6 +97,12 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({
                     <span className="text-ink">{asset.algo}</span>
                     <span className="text-ink-faint">→</span>
                     <span className="text-qubit font-semibold">{asset.rec}</span>
+                  </div>
+                </td>
+                <td className="py-[11px] pr-2 border-b border-border">
+                  <div className="flex gap-1 flex-wrap">
+                    {asset.action && <Badge label={asset.action} tone={asset.phase === 'immediate' ? 'bad' : asset.phase === 'transition' ? 'warn' : asset.action === 'retain' ? 'ok' : 'neutral'} />}
+                    {asset.readinessTier && <Badge label={asset.readinessTier} tone={asset.readinessTier === 'Ready' ? 'ok' : asset.readinessTier === 'Blocked' ? 'bad' : 'neutral'} />}
                   </div>
                 </td>
                 <td className="py-[11px] pr-2 border-b border-border text-ink-soft">{asset.complexity}</td>

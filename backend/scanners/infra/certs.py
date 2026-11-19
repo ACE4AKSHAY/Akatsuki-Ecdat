@@ -35,6 +35,28 @@ _OID_MD5_RSA = "1.2.840.113549.1.1.4"
 
 _WEAK_SIG_HASH = {_OID_SHA1_RSA: "SHA1", _OID_MD5_RSA: "MD5"}
 
+_SIG_NAMES = {
+    _OID_SHA1_RSA: "sha1WithRSAEncryption",
+    _OID_SHA256_RSA: "sha256WithRSAEncryption",
+    _OID_SHA384_RSA: "sha384WithRSAEncryption",
+    _OID_SHA512_RSA: "sha512WithRSAEncryption",
+    _OID_MD5_RSA: "md5WithRSAEncryption",
+    "1.2.840.10045.4.3.2": "ecdsa-with-SHA256",
+    "1.2.840.10045.4.3.3": "ecdsa-with-SHA384",
+    "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
+    "1.3.101.112": "Ed25519",
+    "1.3.101.113": "Ed448",
+}
+
+
+def _key_algorithm(pub) -> str:
+    name = type(pub).__name__
+    if "RSA" in name:
+        return "RSA"
+    if "EllipticCurve" in name or name.startswith("EC"):
+        return "EC"
+    return name.replace("PublicKey", "") or "UNKNOWN"
+
 
 def _is_cert_file(p: Path) -> bool:
     return p.suffix.lower() in CERT_EXTS
@@ -63,10 +85,49 @@ def _load_cert(p: Path) -> x509.Certificate | None:
         return None
 
 
+def _utc(cert: x509.Certificate) -> tuple[datetime.datetime, datetime.datetime]:
+    try:
+        return cert.not_valid_before_utc, cert.not_valid_after_utc
+    except AttributeError:
+        return cert.not_valid_before, cert.not_valid_after
+
+
+def cert_facts(cert: x509.Certificate) -> dict:
+    """Structured X.509 facts for enrichment (v1.1 evidence, not a finding)."""
+    nb, na = _utc(cert)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    pub = cert.public_key()
+    sig_oid = cert.signature_algorithm_oid.dotted_string
+    facts = {
+        "subject": cert.subject.rfc4514_string(),
+        "issuer": cert.issuer.rfc4514_string(),
+        "notBefore": nb.isoformat(),
+        "notAfter": na.isoformat(),
+        "daysToExpiry": (na - now).days,
+        "keyAlgorithm": _key_algorithm(pub),
+        "keySizeBits": getattr(pub, "key_size", None),
+        "signatureAlgorithm": _SIG_NAMES.get(sig_oid, sig_oid),
+        "selfSigned": cert.issuer == cert.subject,
+        "sanCount": 0,
+    }
+    try:
+        facts["signatureHash"] = cert.signature_hash_algorithm.name.upper()
+    except Exception:
+        facts["signatureHash"] = None
+    try:
+        san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+        facts["sanCount"] = len(san.value.get_values_for_type(x509.DNSName))
+    except Exception:
+        pass
+    return facts
+
+
 def _cert_to_findings(cert: x509.Certificate, *, scan_target_id: str,
                       file_path: str) -> list[RawFinding]:
     out: list[RawFinding] = []
     sig_oid = cert.signature_algorithm_oid.dotted_string
+    facts = cert_facts(cert)
+    evidence = {"certificateFacts": facts, "artifactType": "certificate"}
 
     # 1) Key size for RSA.
     pub = cert.public_key()
@@ -87,6 +148,7 @@ def _cert_to_findings(cert: x509.Certificate, *, scan_target_id: str,
                 mode="weak",
                 confidence=0.95,
                 detectionTier="cert-parse",
+                **evidence,
             ))
     except AttributeError:
         pass  # EC key — no key_size attr
@@ -108,6 +170,7 @@ def _cert_to_findings(cert: x509.Certificate, *, scan_target_id: str,
             mode="weak",
             confidence=0.95,
             detectionTier="cert-parse",
+            **evidence,
         ))
 
     # 3) Self-signed.
@@ -127,17 +190,13 @@ def _cert_to_findings(cert: x509.Certificate, *, scan_target_id: str,
                 mode="self-signed",
                 confidence=0.95,
                 detectionTier="cert-parse",
+                **evidence,
             ))
     except Exception:
         pass
 
     # 4) Long validity (>2 years).
-    try:
-        nb = cert.not_valid_before_utc
-        na = cert.not_valid_after_utc
-    except AttributeError:
-        nb = cert.not_valid_before
-        na = cert.not_valid_after
+    nb, na = _utc(cert)
     if isinstance(nb, datetime.datetime) and isinstance(na, datetime.datetime):
         years = (na - nb).days / 365.25
         if years > 2.0:
@@ -155,6 +214,7 @@ def _cert_to_findings(cert: x509.Certificate, *, scan_target_id: str,
                 mode=f"{years:.1f}-years",
                 confidence=0.95,
                 detectionTier="cert-parse",
+                **evidence,
             ))
     return out
 

@@ -29,6 +29,15 @@ COLUMNS = [
     ("recommended_replacement", "Recommended Algorithm"),
     ("complexity", "Migration Complexity"),
     ("reference_standard", "Reference Standard"),
+    ("usage_context", "Usage Context"),
+    ("artifact_type", "Artifact Type"),
+    ("classical_status", "Classical Status"),
+    ("quantum_status", "Quantum Status"),
+    ("standards_maturity", "Standards Maturity"),
+    ("migration_action", "Migration Action"),
+    ("migration_phase", "Migration Phase"),
+    ("readiness_tier", "Readiness"),
+    ("hndl_tier", "HNDL Tier"),
 ]
 
 
@@ -62,6 +71,15 @@ def export_csv(scan_id: str, assets_data: List[Dict[str, Any]]) -> Tuple[bytes, 
             a.get("recommended_replacement", ""),
             a.get("complexity", a.get("migration_complexity", "")),
             a.get("reference_standard", ""),
+            a.get("usage_context", ""),
+            a.get("artifact_type", ""),
+            a.get("classical_status", ""),
+            a.get("quantum_status", ""),
+            a.get("standards_maturity", ""),
+            a.get("migration_action", ""),
+            a.get("migration_phase", ""),
+            a.get("readiness_tier", ""),
+            a.get("hndl_tier", ""),
         ])
 
     content = output.getvalue().encode("utf-8")
@@ -138,6 +156,15 @@ def export_xlsx(scan_id: str, assets_data: List[Dict[str, Any]]) -> Tuple[bytes,
             a.get("recommended_replacement", ""),
             a.get("complexity", a.get("migration_complexity", "")),
             a.get("reference_standard", ""),
+            a.get("usage_context", ""),
+            a.get("artifact_type", ""),
+            a.get("classical_status", ""),
+            a.get("quantum_status", ""),
+            a.get("standards_maturity", ""),
+            a.get("migration_action", ""),
+            a.get("migration_phase", ""),
+            a.get("readiness_tier", ""),
+            a.get("hndl_tier", ""),
         ]
 
         for col_idx, val in enumerate(row_values, 1):

@@ -216,8 +216,44 @@ def export_pdf(scan_id: str, assets_data: List[Dict[str, Any]]) -> Tuple[bytes, 
     story.append(dist_table)
     story.append(Spacer(1, 16))
 
-    # 5. Top 15 Prioritized Migration Assets Table (Prompt 9 Requirement)
-    story.append(Paragraph("3. Top Prioritized Migration Targets (Ranked by Risk)", section_heading))
+    # 5. Migration programme summary (phases, HNDL, readiness)
+    phase_counts = {
+        "immediate": sum(1 for a in assets_data if a.get("migration_phase") == "immediate"),
+        "transition": sum(1 for a in assets_data if a.get("migration_phase") == "transition"),
+        "monitor": sum(1 for a in assets_data if a.get("migration_phase") == "monitor"),
+    }
+    hndl_count = sum(1 for a in assets_data if a.get("hndl_tier") in {"Critical", "High"})
+    blocked_count = sum(1 for a in assets_data if a.get("readiness_tier") == "Blocked")
+    story.append(Paragraph("3. Migration Programme", section_heading))
+    story.append(Paragraph(
+        f"<b>{phase_counts['immediate']}</b> assets require action now, <b>{phase_counts['transition']}</b> are in the "
+        f"transition phase, and <b>{phase_counts['monitor']}</b> are monitored. <b>{hndl_count}</b> assets carry a High or "
+        f"Critical harvest-now-decrypt-later exposure, and <b>{blocked_count}</b> migrations are currently blocked on "
+        "library, protocol or PKI evidence.",
+        body_style,
+    ))
+    phase_data = [
+        [Paragraph("Phase", table_header), Paragraph("Assets", table_header), Paragraph("Meaning", table_header)],
+        [Paragraph("Immediate", table_cell), Paragraph(str(phase_counts["immediate"]), table_cell), Paragraph("Broken or expiring; schedule first", table_cell)],
+        [Paragraph("Transition", table_cell), Paragraph(str(phase_counts["transition"]), table_cell), Paragraph("Quantum-vulnerable or deprecated; begin staged migration", table_cell)],
+        [Paragraph("Monitor", table_cell), Paragraph(str(phase_counts["monitor"]), table_cell), Paragraph("Retain with review or resolve unknown context", table_cell)],
+    ]
+    phase_table = Table(phase_data, colWidths=[1.2 * inch, 0.8 * inch, 5.5 * inch])
+    phase_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), COLOR_CIPHER),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COLOR_PAPER]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(Spacer(1, 6))
+    story.append(phase_table)
+    story.append(Spacer(1, 16))
+
+    # 6. Top 15 Prioritized Migration Assets Table (Prompt 9 Requirement)
+    story.append(Paragraph("4. Top Prioritized Migration Targets (Ranked by Risk)", section_heading))
     
     # Sort assets: highest risk score or auto-escalated first
     sorted_assets = sorted(

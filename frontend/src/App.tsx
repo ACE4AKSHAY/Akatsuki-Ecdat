@@ -8,6 +8,7 @@ import { InventoryPage } from './pages/InventoryPage';
 import { HeatmapPage } from './pages/HeatmapPage';
 import { AssetDetailPage } from './pages/AssetDetailPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
+import { MigrationRoadmapPage } from './pages/MigrationRoadmapPage';
 import { Button } from './components/Button';
 import { Input } from './components/Input';
 import { FolderOpen, ArrowRight, LoaderCircle, Trash2 } from 'lucide-react';
@@ -31,6 +32,7 @@ export const App: React.FC = () => {
   const assets = useMemo(() => computeAllAssetsWithZ(rawAssets, z), [rawAssets, z]);
   const selected = assets.find(a => (a.id || a.name) === selectedId) || assets[0];
   const selectAsset = (id: string) => { setSelectedId(id); setScreen('detail'); };
+  const updateAsset = (updated: FrontendAsset) => setAssets(prev => prev.map(a => ((a.id || a.name) === (updated.id || updated.name) ? { ...a, ...updated } : a)));
 
   function showScan(scan: ScanResponse) {
     setActive(scan);
@@ -126,7 +128,8 @@ export const App: React.FC = () => {
     {!busy && !error && !assets.length && <div className="empty-state"><FolderOpen size={30} /><h2>{active ? 'No cryptographic assets found' : 'Your inventory starts here'}</h2><p>{active ? 'This scan completed with zero findings. Choose another local target to continue.' : 'Start with seed_corpus, the repository’s test workspace, or enter your own local path.'}</p></div>}
     {screen === 'inventory' && <InventoryPage assets={assets} onSelectAsset={selectAsset} />}
     {screen === 'heatmap' && <HeatmapPage assets={assets} z={z} onZChange={setZ} onSelectAsset={selectAsset} />}
-    {screen === 'detail' && selected && <AssetDetailPage asset={selected} z={z} allAssets={assets} onSelectAsset={setSelectedId} />}
+    {screen === 'detail' && selected && <AssetDetailPage asset={selected} z={z} allAssets={assets} onSelectAsset={setSelectedId} onAssetUpdated={updateAsset} />}
     {screen === 'recommend' && active?.status === 'completed' && <RecommendationsPage assets={assets} scanId={active.scanId} onSelectAsset={selectAsset} />}
+    {screen === 'roadmap' && <MigrationRoadmapPage scanId={active?.status === 'completed' ? active.scanId : undefined} onSelectAsset={selectAsset} />}
   </AppShell>;
 };

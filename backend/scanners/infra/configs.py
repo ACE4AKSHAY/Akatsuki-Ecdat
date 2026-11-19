@@ -20,6 +20,8 @@ CONFIG_EXTS = (".conf", ".yml", ".yaml")
 
 PROTOCOL_LINE_RE = re.compile(r"^\s*ssl_protocols\s+([^\n;]+)", re.IGNORECASE | re.MULTILINE)
 CIPHER_LINE_RE = re.compile(r"^\s*ssl_ciphers\s+([^\n;]+)", re.IGNORECASE | re.MULTILINE)
+CERT_DIRECTIVE_RE = re.compile(r"^\s*ssl_(?:certificate|trusted_certificate)\s+([^\n;]+)",
+                               re.IGNORECASE | re.MULTILINE)
 
 DEPRECATED_PROTOCOLS = ("SSLv2", "SSLv3", "TLSv1", "TLSv1.1")
 WEAK_CIPHERS = ("RC4", "DES-CBC3", "EXPORT", "NULL", "aNULL", "eNULL")
@@ -54,6 +56,10 @@ def scan_file(path: str | Path, scan_target_id: str) -> list[RawFinding]:
         return []
     out: list[RawFinding] = []
     text = _strip_expected_header(p.read_text(encoding="utf-8", errors="replace"))
+    referenced = [m.group(1).strip() for m in CERT_DIRECTIVE_RE.finditer(text)]
+    file_protocols = " ".join(
+        m.group(1).strip() for m in PROTOCOL_LINE_RE.finditer(text)
+    ) or None
     for m in PROTOCOL_LINE_RE.finditer(text):
         line_no = _line_no_at(text, m.start())
         protocols = m.group(1).split()
@@ -74,6 +80,9 @@ def scan_file(path: str | Path, scan_target_id: str) -> list[RawFinding]:
                     mode="deprecated",
                     confidence=0.95,
                     detectionTier="config-parse",
+                    artifactType="configuration",
+                    protocol=proto,
+                    referencedPaths=referenced or None,
                 ))
     for m in CIPHER_LINE_RE.finditer(text):
         line_no = _line_no_at(text, m.start())
@@ -94,6 +103,9 @@ def scan_file(path: str | Path, scan_target_id: str) -> list[RawFinding]:
                     mode="weak",
                     confidence=0.95,
                     detectionTier="config-parse",
+                    artifactType="configuration",
+                    protocol=file_protocols,
+                    referencedPaths=referenced or None,
                 ))
     return out
 
