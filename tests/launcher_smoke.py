@@ -90,13 +90,13 @@ def main():
                         break
                     time.sleep(.25)
                 assert scan['status'] == 'completed', scan
-                assert scan['assetCount'] == 10, scan
+                assert scan['assetCount'] == 9, scan
                 for fmt in ('pdf', 'csv', 'xlsx', 'json'):
                     status, body = request(lan + f'/api/reports/{scan_id}?format={fmt}', token)
                     assert status == 200 and len(body) > 50
                 assert json.loads(request(lan + '/api/scans/' + scan_id, token, method='DELETE')[1])['deletedCount'] == 1
                 assert json.loads(request(lan + '/api/scans', token)[1]) == []
-                print('PASS: LAN page, API proxy, token enforcement, 10-asset scan, four reports and deletion')
+                print('PASS: LAN page, API proxy, token enforcement, 9-asset scan, four reports and deletion')
                 archive = root / 'large-upload.zip'
                 with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_STORED) as bundle:
                     bundle.writestr('app.py', 'import hashlib\nhashlib.md5(b"LAN capacity fixture")\n')

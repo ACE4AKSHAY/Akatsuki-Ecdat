@@ -207,11 +207,42 @@ $env:ECDAT_API_TOKEN = 'replace-with-your-own-token'
 .\ecdat.bat dev
 ```
 
-Enter the same token under **Workspace access token** in the dashboard and click Connect. It stays in the tab's memory and must be entered again after reloading. The token protects scan creation, history deletion, inventory and exports. `/health` remains public; opening `/docs` directly also needs authentication when protection is enabled.
+Enter the same token under **Workspace access token** in the dashboard and click Connect. It stays in the tab's memory and must be entered again after reloading. The token protects scan creation, history deletion, inventory and exports. `/health` and `/health/ready` remain public so an orchestrator can poll them; opening `/docs` directly also needs authentication when protection is enabled.
+
+## Operational settings
+
+Two optional settings control the service logs. Set them before starting the backend and restart it afterwards.
+
+Command Prompt:
+
+```bat
+set "ECDAT_LOG_FORMAT=text"
+set "ECDAT_LOG_LEVEL=DEBUG"
+ecdat.bat dev
+```
+
+PowerShell:
+
+```powershell
+$env:ECDAT_LOG_FORMAT = 'text'
+$env:ECDAT_LOG_LEVEL = 'DEBUG'
+.\ecdat.bat dev
+```
+
+`ECDAT_LOG_FORMAT` accepts `json` (the default, best for log collectors) or `text` (best for reading in a console). `ECDAT_LOG_LEVEL` accepts `DEBUG`, `INFO`, `WARNING` and `ERROR`. Every record carries the request id of the request in scope, and the same id appears in the response headers and in error responses.
+
+Check that the service is up and that its dependencies are usable:
+
+```bat
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/health/ready
+```
+
+The readiness response reports the database, the standards registry, the detection signals and the scan worker separately, together with the registry version, the detection signal count and the build commit. The [operations guide](OPERATIONS.md) covers the deployment model, the security posture, database maintenance and how to change the standards registry.
 
 ## Usage and demonstration
 
-1. Choose **Local path**, enter `demo/workspace`, and start a scan. The supplied fixture produces 10 assets and 3 Critical findings with the default assessment.
+1. Choose **Local path**, enter `demo/workspace`, and start a scan. The supplied fixture produces 9 assets and 3 Critical findings with the default assessment.
 2. Review Overview, then search for SHA or TLS in Inventory. Open an asset to see its source location, recommendation and risk inputs.
 3. On Risk heatmap, adjust the quantum threat timeline Z. Years display with at most two decimals. X is required data confidentiality lifetime, Y is migration duration, and Z is an assumed threat horizon, not a prediction.
 4. The heatmap groups assets by business criticality and assessed risk tier. Each cell shows the number of findings, so overlapping assets are not hidden. Select a populated cell to list its assets, then open one for details.
@@ -315,6 +346,12 @@ Tests automatically use temporary storage and can run alongside the app. With ma
 Validation for this update includes automated backend/frontend tests, a fresh installation in a path containing spaces, and browser checks on macOS. The compatibility workflow runs batch setup, tests, build, LAN proxy and process-shutdown checks on a Windows runner. Check its result for the revision you use; a second device on your own Windows network must still verify the firewall/router connection. Trivy live scanning is also unverified here. If a Windows issue occurs, share the selected launcher option, version-check output and relevant log excerpt, with access tokens removed.
 
 ## References
+
+- [Architecture reference](ARCHITECTURE.md)
+- [Migration playbook](MIGRATION_PLAYBOOK.md)
+- [Operations guide](OPERATIONS.md)
+- [Test code and sample inputs](TEST_DATA.md)
+- [Changelog](../CHANGELOG.md)
 
 - [Python on Windows](https://docs.python.org/3.12/using/windows.html)
 - [Node.js downloads](https://nodejs.org/en/download)

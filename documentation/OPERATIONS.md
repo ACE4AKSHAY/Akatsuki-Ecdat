@@ -1,0 +1,178 @@
+# ECDAT operations guide
+
+How to run, observe, secure and maintain an ECDAT deployment. The local
+setup procedure lives in `SETUP_AND_RUN.md`; this document covers the
+operational surface of the service.
+
+## 1. Deployment model
+
+ECDAT is a local-first, single-node service:
+
+- **API** — FastAPI on loopback by default, Uvicorn, one worker process.
+- **Worker** — one background scan worker, guarded by a cross-platform file
+  lock so a second instance cannot process the same queue.
+- **Database** — SQLite in WAL mode with foreign keys enforced.
+- **Dashboard** — a built React bundle served by Vite in dev mode or by any
+  static host in production, proxying `/api/*` to the backend.
+
+The single-writer design is deliberate: scan jobs mutate shared state, and
+serialising them keeps failures predictable. Horizontal scaling requires a
+different job backend and is out of scope for this release.
+
+## 2. Configuration
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `DATABASE_URL` | SQLAlchemy connection string | `sqlite:///./ecdat.db` |
+| `ECDAT_STATE_DIR` | Uploads, ingestion state and worker lock | `.ecdat` |
+| `ECDAT_API_TOKEN` | Shared bearer token for every endpoint except the health probes | unset |
+| `ECDAT_CORS_ORIGINS` | Comma-separated allowed browser origins | unset |
+| `ECDAT_GIT_HOSTS` | HTTPS Git host allowlist | GitHub, GitLab, Bitbucket |
+| `ECDAT_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` | `INFO` |
+| `ECDAT_LOG_FORMAT` | `json` or `text` | `json` |
+| `ECDAT_MAX_UPLOAD_MIB` | Upload size limit | `512` |
+| `ECDAT_MAX_WORKSPACE_MIB` | Local, Git snapshot or expanded ZIP limit | `2048` |
+| `ECDAT_MAX_FILES` | Snapshot file count or ZIP entry count | `100000` |
+| `ECDAT_MAX_INVENTORY_MIB` | Container inventory JSON limit | `128` |
+| `ECDAT_GIT_TIMEOUT_SECONDS` | Git clone deadline | `600` |
+| `ECDAT_IMAGE_TIMEOUT_SECONDS` | Live image inventory deadline | `600` |
+| `API_PROXY_TARGET` | Dashboard API proxy target | `http://127.0.0.1:8000` |
+
+All of them are read at start-up. Change a value, then restart the backend.
+
+## 3. Health and readiness
+
+```
+GET /health       liveness — the process is up and answering
+GET /health/ready readiness — the dependencies are usable
+```
+
+`/health` reports the service version and status. `/health/ready` checks each
+dependency separately:
+
+| Check | What it verifies |
+| --- | --- |
+| `database` | The database answers a trivial query |
+| `standardsRegistry` | The policy registry loads and passes validation |
+| `detectionSignals` | The detection signal file loads and has patterns |
+| `scanWorker` | The background scan worker thread is running |
+
+Readiness is decided by the database, registry and signal checks. A stopped
+worker is reported but does not by itself make the instance unready, so a
+restarting deployment is not taken out of rotation prematurely.
+
+Both paths are exempt from the bearer token so an orchestrator can poll them
+without a credential. Everything else requires the token when
+`ECDAT_API_TOKEN` is set.
+
+`/health/ready` also returns the registry version and review date, the
+detection signal count, and the build commit and build time, which is enough
+to confirm that the running process is the expected revision.
+
+## 4. Logging
+
+The service emits structured JSON by default. Each record carries the
+timestamp, level, logger, message and the request id of the request in
+scope. Set `ECDAT_LOG_FORMAT=text` for human-readable output during
+development.
+
+Every request is logged once by the request-context middleware with its
+method, path, status code and duration. The request id is generated per
+request unless the client sends `X-Request-ID`, in which case the inbound
+value is reused (truncated to 64 characters). The same id appears in the
+response headers and in every error body, so a user-reported failure can be
+traced to exact log lines.
+
+The audit trail is separate from the application log: it is stored in the
+`audit_events` table and records operator decisions, not request activity.
+
+## 5. Security posture
+
+**Authentication.** A single optional shared bearer token. It is a
+single-operator or small-team mechanism, not an identity system.
+
+**Authorisation.** The token grants full access to every route. There are no
+roles and no per-tenant isolation. `X-Operator` and the `operator` field in
+the context override are recorded for accountability, not enforced.
+
+**Transport.** The default deployment is loopback only. In LAN mode the
+dashboard is shared on all IPv4 interfaces while the API stays behind its
+loopback proxy. The API is not exposed to the network directly, and any
+deployment that puts it beyond loopback must terminate TLS in front of it.
+
+**Response headers.** `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`,
+`Cross-Origin-Opener-Policy: same-origin`, a restrictive `Permissions-Policy`
+and `Cache-Control: no-store` on every response. `Strict-Transport-Security`
+is added on HTTPS requests.
+
+**Error handling.** Errors return a structured envelope with `detail`,
+`statusCode` and `requestId`. Validation errors add field-level `errors`.
+Unhandled exceptions return a generic message; stack traces and internal
+detail never reach the client.
+
+**Input limits.** Every ingestion path has an explicit size, count and time
+limit, and the limits are enforced before work starts. Symbolic links are not
+followed.
+
+**Known gaps.** No rate limiting, no account lockout, no secret rotation
+story, no encrypted storage for scan artefacts, no malware scanning of
+uploads. Treat a shared token as a control for a trusted local network, not
+as a substitute for an identity provider.
+
+## 6. Database maintenance
+
+The schema migrates itself on start-up and the migration is additive and
+idempotent, so upgrading the code is enough. Operational indexes are created
+with `CREATE INDEX IF NOT EXISTS` on every start.
+
+Backup is a file copy of `ecdat.db` plus its `-wal` and `-shm` sidecars, or a
+SQLite backup API call. Restoring is the reverse. The `audit_events` table is
+the record to preserve longest.
+
+## 7. Maintaining the standards registry
+
+The registry (`backend/knowledge/standards_registry.json`) is policy data and
+is reviewed by humans.
+
+**Changing an entry.** Edit the entry, bump `registryVersion`, update
+`reviewedOn`, then validate:
+
+```sh
+python scripts/validate_registry.py
+```
+
+The validator reports missing required fields, unknown families or actions,
+duplicate entry ids, aliases claimed by two entries, migration paths with no
+roles, dangling candidate references and unknown candidate fits. The same
+check runs in CI and as `backend/tests/test_standards_registry.py`.
+
+**Adding a migration path.** Declare the path id, its `roles` and its
+candidates with an explicit `fit` from `preferred`, `transition`,
+`acceptable-alternative`, `alternative`, `tracked-future` or
+`cnsa-preferred`. Candidates are ranked by fit.
+
+**Adding a detection signal.** Edit
+`backend/scanners/source/signals.yaml`, add the algorithm to the registry,
+and extend `backend/tests/test_detection_coverage.py` with the positive
+fixture and the false-positive trap.
+
+## 8. Running the tests
+
+```sh
+python -m pytest -q          # backend
+cd frontend && npm test      # frontend unit tests
+cd frontend && npm run build # type check and production build
+```
+
+The backend suite uses a temporary database and worker state directory.
+`ECDAT_TEST_DATABASE_URL`, if set, must point at dedicated test data only.
+
+## 9. Continuous integration
+
+| Workflow | What it does |
+| --- | --- |
+| `.github/workflows/ci.yml` | Registry policy check, backend suite on Windows and Linux across Python 3.10 and 3.12, frontend unit tests and production build |
+| `.github/workflows/compatibility.yml` | Windows batch setup, launcher tests, build, LAN smoke check and log capture |
+
+Both run on pushes to `main` and `feature/**` and on pull requests.

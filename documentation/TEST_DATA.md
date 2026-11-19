@@ -7,12 +7,18 @@ ECDAT includes automated tests and deliberately chosen scanner inputs. The test 
 | Location | Purpose |
 | --- | --- |
 | `backend/tests/test_*.py` | Source, dependency, binary, infrastructure, certificate and seed-corpus scanner tests. |
+| `backend/tests/test_detection_coverage.py` | Detection coverage per primitive, family and fixture, including the false-positive traps and the canonicalisation of key-size variants. |
+| `backend/tests/test_hardening.py` | Health and readiness probes, request ids, security headers, error envelopes, audit trail, SQLite pragmas, indexes and pagination. |
+| `backend/tests/test_migration_engines.py` | Risk, recommendation, readiness, HNDL and migration-strategy behaviour, including the ECB reconfiguration path. |
+| `backend/tests/test_standards_registry.py` | Structural validation of the standards registry policy data and its migration paths. |
 | `tests/test_*.py` | API integration, normalization, risk, reports, ingestion, worker ownership, history deletion and launcher checks. |
 | `tests/test_input_capacity.py` | Generates temporary large workspaces, ZIPs and image JSON; checks limits, cleanup, configuration and external-tool deadlines. No large fixtures are stored in Git. |
 | `frontend/src/api.test.ts` | API mapping, pagination and risk calculations used by the dashboard. |
 | `frontend/src/heatmap.test.ts` | Decimal formatting, Windows path labels and complete heatmap grouping. |
 | `conftest.py` | Gives the main pytest suite a temporary database and state directory, separate from normal scan history. |
 | `tests/launcher_smoke.py` | Explicit process test after setup: LAN page, API proxy, token, scan, exports, deletion, a 21 MiB ZIP upload and service shutdown. |
+| `scripts/validate_registry.py` | Standalone policy check for the standards registry; also run by CI. |
+| `.github/workflows/ci.yml` | Registry policy check, backend suite on Windows and Linux across Python 3.10 and 3.12, frontend unit tests and production build. |
 | `.github/workflows/compatibility.yml` | Runs setup, tests, build and the process smoke check on Windows and Linux. Windows setup/tests use the actual batch file, from a checkout path containing spaces. |
 | `ecdat/tests/` | Tests for the earlier standalone module package. They are outside the default integrated application's pytest test paths. |
 
@@ -32,7 +38,7 @@ Run `ecdat.bat test` on Windows, or `.venv/bin/python scripts/launcher.py test` 
 | `seed_corpus/binary/openssl_v1_0_2_strings.txt` | Text containing binary-style version/symbol evidence; not an executable binary. |
 | `seed_corpus/certs/` | Four X.509 certificate fixtures described below. |
 
-For the simplest demonstration, scan `demo/workspace` (10 assets, 3 Critical findings with defaults). Scan `seed_corpus` for broader coverage. Use File or ZIP upload to select files on a client device; Local path always refers to the computer running the backend. Source examples are read statically; there is no need to execute them.
+For the simplest demonstration, scan `demo/workspace` (9 assets, 3 Critical findings with defaults). Scan `seed_corpus` for broader coverage. Use File or ZIP upload to select files on a client device; Local path always refers to the computer running the backend. Source examples are read statically; there is no need to execute them.
 
 ## Certificate fixtures
 

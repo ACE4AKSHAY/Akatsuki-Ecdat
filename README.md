@@ -2,6 +2,10 @@
 
 ECDAT is a local React dashboard and FastAPI pipeline for discovering cryptographic assets in source code, dependency manifests, binary evidence, infrastructure configuration, certificates and container package inventories. It normalizes findings into a CycloneDX-aligned CBOM model, estimates migration urgency with Mosca's inequality, recommends review actions and exports reports.
 
+Current release: **1.1.0**. See the [changelog](CHANGELOG.md) for what changed and
+the [architecture reference](documentation/ARCHITECTURE.md) for how the modules
+fit together.
+
 ## Start on Windows
 
 Use the updated source package or a checkout containing `ecdat.bat`. Install **Python 3.10+ (3.12 recommended)**, **Node.js 22.12+ with npm**, and **Git 2.30+**. Extract the source into a writable folder, then double-click `ecdat.bat`:
@@ -63,9 +67,42 @@ On Windows the backend equivalent is `.venv\Scripts\python.exe -m uvicorn backen
 
 Scanned project code is read statically and is not executed. Missing targets produce errors; completed empty scans contain zero assets.
 
+## What ECDAT decides for you
+
+A finding is not the end of the analysis. Each asset is assessed on four
+independent axes — classical security, quantum exposure, standards maturity
+and usage context — and each assessment ends in a plan an engineer can
+execute.
+
+| Assessment | What it tells you |
+| --- | --- |
+| Classical status | Whether the primitive is safe today: strong, acceptable, deprecated or broken |
+| Quantum status | Whether it is vulnerable, weakened or resistant to a quantum attacker |
+| Standards maturity | How mature the governing standard is |
+| Usage context | Whether the artefact signs, transports, derives keys or stores passwords |
+| Readiness tier | How ready the asset is to migrate, with a component breakdown |
+| HNDL tier | Harvest-now-decrypt-later exposure for long-lived sensitive data |
+| Migration strategy | Action, phase, ranked candidates, blockers, assumptions and a numbered playbook |
+
+The strategy follows the artefact rather than a fixed lookup table. Password
+storage is routed to Argon2id or bcrypt candidates with a rehash path; ECB
+usage is treated as a reconfiguration to an AEAD mode because key length does
+not fix the leak; a quantum-vulnerable key exchange is bridged with a hybrid
+construction during the transition window and pointed at a committed end
+state.
+
+Policy lives in a versioned, human-reviewed registry
+(`backend/knowledge/standards_registry.json`) rather than in code, so changing
+a recommendation is a reviewed data change with a version trail. The registry
+is validated in CI.
+
+The [migration playbook](documentation/MIGRATION_PLAYBOOK.md) explains how to
+read an asset, what each action means, how to confirm a wrong usage context
+and how to sequence the work.
+
 ## Demonstration
 
-Choose **Local path** and scan `demo/workspace`. The supplied fixture produces **10 assets and 3 Critical findings** with the default assessment. `demo/image-inventory.json` is an offline container package example with **2 findings**. Relative paths resolve from the backend repository root.
+Choose **Local path** and scan `demo/workspace`. The supplied fixture produces **9 assets and 3 Critical findings** with the default assessment. `demo/image-inventory.json` is an offline container package example with **2 findings**. Relative paths resolve from the backend repository root.
 
 With the API running:
 
@@ -83,9 +120,12 @@ History deletion removes saved scans, findings, recommendations, queued-job opti
 | --- | --- |
 | `DATABASE_URL` | Database connection; defaults to `sqlite:///./ecdat.db` |
 | `ECDAT_STATE_DIR` | Uploads, ingestion state and worker lock; defaults to `.ecdat` |
-| `ECDAT_API_TOKEN` | Optional shared bearer token on every endpoint except `/health` |
+| `ECDAT_API_TOKEN` | Optional shared bearer token on every endpoint except the health probes |
 | `ECDAT_CORS_ORIGINS` | Comma-separated allowed browser origins |
 | `ECDAT_GIT_HOSTS` | HTTPS Git host allowlist; GitHub, GitLab and Bitbucket by default |
+| `ECDAT_LOG_LEVEL` | Log level; `INFO` by default |
+| `ECDAT_LOG_FORMAT` | Log format; `json` by default, `text` for human-readable output |
+| `ECDAT_BUILD_COMMIT`, `ECDAT_BUILD_DATE` | Build metadata reported by the readiness probe |
 | `API_PROXY_TARGET` | Vite API target; defaults to `http://127.0.0.1:8000` |
 | `ECDAT_MAX_UPLOAD_MIB` | Upload file size; 512 MiB |
 | `ECDAT_MAX_WORKSPACE_MIB` | Local file, local/Git snapshot or expanded ZIP size; 2048 MiB (2 GiB) |
@@ -100,6 +140,23 @@ The launcher accepts `--api-port` and `--ui-port`, configures the proxy, checks 
 
 API documentation is at http://127.0.0.1:8000/docs. Frontend `/api/*` requests are proxied to FastAPI with the `/api` prefix removed. Production hosting needs equivalent proxy behavior. Token protection also applies to API documentation and deletion endpoints.
 
+## Operational endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Liveness: the process is up, with the service version |
+| `GET /health/ready` | Readiness: database, standards registry, detection signals and scan worker, plus registry and build metadata |
+| `GET /standards`, `GET /standards/{id}` | The policy registry and its migration paths |
+| `GET /roadmap/{scan_id}` | The scan's assets grouped into act-now, plan-and-stage, reach-target and monitor phases |
+| `PATCH /assets/{id}/context` | Operator override of the usage context; re-plans the asset and writes an audit event |
+
+Both health probes stay reachable without the bearer token so an
+orchestrator can poll them. Every request carries a request id — generated
+per request, or taken from an inbound `X-Request-ID` — which appears in the
+response headers, in the structured logs and in the error envelope. The
+[operations guide](documentation/OPERATIONS.md) covers the deployment model,
+the security posture and the registry maintenance procedure.
+
 ## Validation
 
 ```bat
@@ -108,12 +165,18 @@ ecdat.bat test
 
 Or run `.venv/bin/python scripts/launcher.py test` on macOS/Linux. The individual checks are `.venv/bin/pytest -q`, `npm test` and `npm run build` (the npm commands run in `frontend`). Pytest uses a temporary database and worker state directory. An optional `ECDAT_TEST_DATABASE_URL` must point only to dedicated test data.
 
-The update passes **100 backend tests and 24 frontend tests**, plus a production build. Capacity tests complete a 101 MiB workspace with 10,002 files, a 101 MiB ZIP upload and a 21 MiB image inventory. They also check configurable limits, cleanup and timeout handling. The [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, a 21 MiB upload through the LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
+The update passes **170 backend tests and 27 frontend tests**, plus a production build. Capacity tests complete a 101 MiB workspace with 10,002 files, a 101 MiB ZIP upload and a 21 MiB image inventory. They also check configurable limits, cleanup and timeout handling. The [CI workflow](.github/workflows/ci.yml) runs the backend suite on Windows and Linux across Python 3.10 and 3.12, the frontend unit tests and the production build, and validates the standards registry policy data. The [compatibility workflow](.github/workflows/compatibility.yml) checks Windows batch setup, tests, build, a 21 MiB upload through the LAN proxy and shutdown. Check the Actions result for your revision. A second device on your network must still verify firewall/router reachability.
+
+The standards registry has its own gate: `python scripts/validate_registry.py` reports missing fields, unknown families, duplicate ids, colliding aliases and dangling migration candidates.
 
 The [test and sample-data map](documentation/TEST_DATA.md) identifies automated tests, demonstration inputs and all four self-signed certificate fixtures. Certificate fixtures are scanner inputs; do not install them as trusted roots or use them for dashboard HTTPS.
 
 ## Documentation
 
+- [Architecture reference](documentation/ARCHITECTURE.md): module ownership, data flow, extension points and the request lifecycle.
+- [Migration playbook](documentation/MIGRATION_PLAYBOOK.md): how to read an asset, what each action means, context overrides and how to sequence the work.
+- [Operations guide](documentation/OPERATIONS.md): configuration, health probes, logging, security posture, database maintenance and registry upkeep.
+- [Changelog](CHANGELOG.md): release history.
 - [Test code and sample inputs](documentation/TEST_DATA.md): test suites, demonstration files and certificate properties.
 - [Setup and run guide](documentation/SETUP_AND_RUN.md): Windows commands, launcher menu, requirements, permissions, usage and troubleshooting.
 - [Technical reference](documentation/ECDAT_Technical_Reference.docx): objective, architecture, modules, stack, implementation boundaries and future scope.
@@ -123,6 +186,6 @@ The [test and sample-data map](documentation/TEST_DATA.md) identifies automated 
 
 Default local/Git snapshots are limited to 2 GiB and 100,000 files after dependency/output exclusions. Single local files have the same size limit. Uploads allow 512 MiB; ZIP expanded content allows 2 GiB and 100,000 entries, including directory entries. ZIP entries are counted before scanner exclusions. Uploaded image JSON uses the smaller of the upload and 128 MiB inventory limits. Symbolic links are not followed. HTTPS Git inputs are allowlisted, shallow and noninteractive, with a 600-second clone limit. These limits are configurable; they are acceptance limits, not throughput guarantees. Scanning still uses one worker, and parsers/findings consume memory. Git download size is not bounded by the snapshot limit; keep room for the clone plus its snapshot. See the setup guide for disk, memory and slower-network considerations.
 
-Source AST scanning currently targets Python, Java, JavaScript and Go. Binary inspection uses strings and optional symbols, with a pure-Python strings fallback when native tools are absent. Rules and package registries are curated, and all findings and migration recommendations require human review.
+Source AST scanning currently targets Python, Java, JavaScript, TypeScript and Go. Binary inspection uses strings and optional symbols, with a pure-Python strings fallback when native tools are absent. Rules, package registries and the standards registry are curated, and all findings and migration recommendations require human review.
 
-Live image scanning requires an external Trivy installation and registry access; the offline JSON route is verified, but live Trivy scans remain unverified here. The exporter uses CycloneDX 1.6 vocabulary; formal interoperability needs dedicated validation. SQLite, a single worker and an optional shared token support local review. Distributed workers, enterprise identity, tenant isolation, managed deployment and stronger operational controls remain future work.
+Live image scanning requires an external Trivy installation and registry access; the offline JSON route is verified, but live Trivy scans remain unverified here. The exporter uses CycloneDX 1.6 vocabulary; formal interoperability needs dedicated validation. SQLite, a single worker and an optional shared token support local review. The shared token has no roles and no per-tenant isolation, so it is a control for a trusted network rather than an identity system. Distributed workers, enterprise identity, tenant isolation, managed deployment and stronger operational controls remain future work.
