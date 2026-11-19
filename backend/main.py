@@ -29,7 +29,7 @@ from backend.api.config_routes import router as config_router
 from backend.api.standards import router as standards_router
 from backend.api.roadmap import router as roadmap_router
 
-VERSION = "1.2.0"
+from backend.version import VERSION
 
 log = logging.getLogger(__name__)
 

@@ -18,6 +18,7 @@ from backend.metrics import record_request, record_scan_outcome, render_metrics
 from backend.models.db_models import AuditEvent, Scan
 from backend.ratelimit import RateLimitMiddleware, _positive_env
 from backend.retention import get_retention_days, prune_expired_scans
+from backend.version import VERSION
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -46,7 +47,7 @@ def test_metrics_endpoint_exposes_core_series(client):
     assert "# TYPE ecdat_requests_total counter" in body
     assert "# TYPE ecdat_build_info gauge" in body
     build = [line for line in body.splitlines() if line.startswith("ecdat_build_info{")]
-    assert build and 'version="1.2.0"' in build[0]
+    assert build and f'version="{VERSION}"' in build[0]
     uptime = _sample("ecdat_process_uptime_seconds", body)
     assert uptime and float(uptime[0]) >= 0
 
@@ -63,7 +64,7 @@ def test_metrics_counts_requests_by_route_and_status(client):
 
 def test_metrics_records_scan_outcomes(client):
     record_scan_outcome("completed")
-    body = render_metrics(version="1.2.0")
+    body = render_metrics(version="1.3.0")
     assert _sample("ecdat_scan_outcomes_total", body)
     assert 'ecdat_scan_outcomes_total{outcome="completed"}' in body
 

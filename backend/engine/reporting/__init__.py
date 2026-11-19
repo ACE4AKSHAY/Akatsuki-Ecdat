@@ -10,13 +10,15 @@ from typing import Literal, Tuple, List, Dict, Any
 from backend.engine.reporting.cbom_report import export_cbom_json
 from backend.engine.reporting.spreadsheet_report import export_csv, export_xlsx
 from backend.engine.reporting.pdf_report import export_pdf
+from backend.engine.reporting.sarif_report import export_sarif
 
 
 def generate_report(
     scan_id: str,
     raw_cbom_json: str = "",
     assets_data: List[Dict[str, Any]] = None,
-    report_format: Literal["pdf", "csv", "xlsx", "json"] = "json",
+    report_format: Literal["pdf", "csv", "xlsx", "json", "sarif"] = "json",
+    tool_version: str = "unknown",
 ) -> Tuple[bytes, str, str]:
     """
     Unified entrypoint for M9 report generation.
@@ -33,8 +35,10 @@ def generate_report(
         return export_xlsx(scan_id=scan_id, assets_data=data)
     elif fmt == "pdf":
         return export_pdf(scan_id=scan_id, assets_data=data)
+    elif fmt == "sarif":
+        return export_sarif(scan_id=scan_id, version=tool_version, assets_data=data)
     else:
-        raise ValueError(f"Unsupported report format '{report_format}'. Must be 'pdf', 'csv', 'xlsx', or 'json'.")
+        raise ValueError(f"Unsupported report format '{report_format}'. Must be 'pdf', 'csv', 'xlsx', 'json', or 'sarif'.")
 
 
 __all__ = [
@@ -43,4 +47,5 @@ __all__ = [
     "export_csv",
     "export_xlsx",
     "export_pdf",
+    "export_sarif",
 ]

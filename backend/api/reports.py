@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models.db_models import Scan, Asset, Recommendation
+from backend.version import VERSION
 from backend.engine.reporting import generate_report
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 @router.get("/{scan_id}")
 def export_scan_report(
     scan_id: str,
-    format: Literal["pdf", "csv", "xlsx", "json"] = Query("json", description="Report format: pdf, csv, xlsx, or json"),
+    format: Literal["pdf", "csv", "xlsx", "json", "sarif"] = Query("json", description="Report format: pdf, csv, xlsx, json, or sarif"),
     db: Session = Depends(get_db),
 ):
     """
@@ -84,6 +85,7 @@ def export_scan_report(
         raw_cbom_json=scan.raw_cbom_json or "{}",
         assets_data=assets_data,
         report_format=format,
+        tool_version=VERSION,
     )
 
     return Response(
